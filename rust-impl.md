@@ -20,3 +20,16 @@ entrega.
 A _crate_ `clap` é uma popular biblioteca no ecossistema Rust especializada em
 interpretar comandos e flags de aplicativos de linha de comando. Por isso, foi utilizada
 para montar a interface do compilador, isto é, lidar com as _flags_ e outros argumentos.
+
+## Erros
+Os arquivos `*.properties` no formato _ini_ são utilizados para descrever erros e
+categorizá-los de acordo com o domínio ao qual pertencem. Eles também foram utilizados
+na implementação em Rust do compilador, e são interpretados utilizando a _crate_
+`configparser`.
+
+No entanto, diferente da implementação em Python, nesta versão, mantemos todas as
+seções e os erros em memória ao realizar a leitura desses arquivos apenas uma vez
+durante a inicialização do compilador. Essa decisão não tem nenhum impacto na performance
+do compilador na prática, visto que diante do primeiro erro, o programa se encerra.
+
+A biblioteca _anyhow_ foi utilizada para facilitar a propagação de erros.
