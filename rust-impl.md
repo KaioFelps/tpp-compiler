@@ -9,10 +9,10 @@ As estruturas seguirão fortemente os exemplos, e a mesma interface adotada pela
 implementações em Python será utilizada na estrutura do Lexer em Rust.
 
 ## Pendências da primeira entrega
-- [ ] _flag_ `-h` ou `--help` deve mostrar uma mensagem listando todos os comandos e
+- [x] _flag_ `-h` ou `--help` deve mostrar uma mensagem listando todos os comandos e
     como usar o compilador.
-- [ ] _flag_ `-k` deve imprimir as chaves dos erros ao invés das mensagens.
-- [ ] a chamada do compilador deve emitir uma lista dos tokens extraídos do código-fonte.
+- [x] _flag_ `-k` deve imprimir as chaves dos erros ao invés das mensagens.
+- [x] a chamada do compilador deve emitir uma lista dos tokens extraídos do código-fonte.
 
 A _flag_ `--lexer` não será implementada, visto que somente a implementação manual
 será adotada, como dito anteriormente. As demais flags não serão implementadas nesta
