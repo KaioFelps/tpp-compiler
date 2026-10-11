@@ -15,6 +15,7 @@ use std::{
     collections::HashMap,
     fs::{OpenOptions, exists, read_to_string},
 };
+use tracing_subscriber::EnvFilter;
 
 fn init_logging() -> anyhow::Result<()> {
     let file = OpenOptions::new()
@@ -23,9 +24,11 @@ fn init_logging() -> anyhow::Result<()> {
         .truncate(true)
         .open("tpp_compiler.log")?;
 
+    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("warn"));
+
     tracing_subscriber::fmt()
+        .with_env_filter(filter)
         .with_writer(file)
-        .with_max_level(tracing::Level::DEBUG)
         .with_ansi(false)
         .with_file(true)
         .with_line_number(true)
@@ -101,14 +104,15 @@ fn main() -> anyhow::Result<()> {
     let source_codes = acquire_source_codes(&args)?;
     let source_files_tokens = lex_source_codes(&args, &source_codes)?;
 
-    println!(
-        "Hello, world! usou key: {}; arquivos fontes: {:#?};",
-        args.use_errors_key, args.source_files
-    );
-
-    for (file, tokens) in source_files_tokens {
-        println!("{file}");
-        tokens.iter().for_each(|token| println!("\t{token}"));
+    if source_files_tokens.len() > 1 {
+        for (file, tokens) in source_files_tokens {
+            println!("{file}");
+            tokens.iter().for_each(|token| println!("\t{token}"));
+        }
+    } else if source_files_tokens.len() == 1 {
+        source_files_tokens.values().collect::<Vec<_>>()[0]
+            .iter()
+            .for_each(|token| println!("{token}"));
     }
 
     Ok(())
