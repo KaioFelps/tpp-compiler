@@ -35,6 +35,12 @@ do compilador na prática, visto que diante do primeiro erro, o programa se ence
 
 A biblioteca _anyhow_ foi utilizada para facilitar a propagação de erros.
 
+O arquivo `LexerErrorMessages.properties` foi copiado para `__LexerErrorMessages.properties`,
+e todas as referências a ele nas implementações em Python agora apontam para esta cópia.
+A versão original contém mensagens de erros mais ricas, isto é, com mais informações sobre
+o contexto do problema, incluindo o caminhod o arquivo, o provável lexema, a linha e a coluna
+em que estão localizados no arquivo do código-fonte.
+
 ## Caracteres ou Bytes
 Em C/C++, um caractere é sinônimo de byte. De fato, um caractere ASCII ocupa exatamente
 1 byte, e para muitos textos, isso é o suficiente para indexar corretamente cada caractere.

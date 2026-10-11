@@ -20,7 +20,7 @@ tppcompiler-code-start/
 │   │   ├── __init__.py                     # Factory get_lexer e exportações
 │   │   ├── base.py                         # Classe base abstrata (BaseLexer) e Token
 │   │   ├── LogErrorLexer.py                # Tratamento e formatação de erros léxicos
-│   │   ├── LexerErrorMessages.properties   # Mensagens de erro léxicas
+│   │   ├── __LexerErrorMessages.properties # Mensagens de erro léxicas
 │   │   ├── ply_lexer/                      # Estratégia PLY (tokens, regexs, methods, ply_lexer)
 │   │   ├── mandfa_lexer/                   # Estratégia DFA manual procedural
 │   │   ├── symtable_lexer/                 # Estratégias com Tabela de Símbolos

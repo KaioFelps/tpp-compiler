@@ -12,7 +12,7 @@ class MyError():
     base_dir = os.path.dirname(os.path.abspath(__file__))
     error_files = [
         'GlobalErrorMessages.properties',
-        'tpplexer/LexerErrorMessages.properties',
+        'tpplexer/__LexerErrorMessages.properties',
         'tppparser/ParserErrorMessages.properties',
         'tppsema/SemaErrorMessages.properties',
         'tppcodegen/CodeGenErrorMessages.properties'

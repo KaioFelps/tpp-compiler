@@ -132,7 +132,7 @@ No [Código de Start](https://moodle.utfpr.edu.br/mod/url/view.php?id=1733830) t
 
 ```text
  GlobalErrorMessages.properties
- tpplexer/LexerErrorMessages.properties
+ tpplexer/__LexerErrorMessages.properties
  tppparser/ ParserErrorMessages.properties
  tppsema/SemaErrorMessages.properties
  tppcodegen/CodeGenErrorMessages.properties
