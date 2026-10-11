@@ -90,6 +90,13 @@ def run_benchmark_for_strategy(strategy: str, code: str, rounds: int = 3, warmup
             tmp_path = tmp_file.name
 
         try:
+            # Rodada de aquecimento (warm-up) para o SO carregar o binário executável na memória
+            if warmup:
+                try:
+                    subprocess.run([bin_path, tmp_path], capture_output=True, check=True)
+                except subprocess.CalledProcessError:
+                    pass 
+
             for r in range(rounds):
                 t0 = time.perf_counter()
 
