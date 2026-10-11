@@ -86,15 +86,7 @@ pub struct TppCompilerError {
 }
 
 impl TppCompilerError {
-    pub fn new<T: ToString>(section: ErrorSection, key: T) -> Self {
-        Self {
-            key: key.to_string().to_lowercase(),
-            section,
-            force_key: false,
-        }
-    }
-
-    pub fn new_with_force_key<T: ToString>(section: ErrorSection, key: T, force_key: bool) -> Self {
+    pub fn new<T: ToString>(section: ErrorSection, key: T, force_key: bool) -> Self {
         Self {
             key: key.to_string().to_lowercase(),
             section,
