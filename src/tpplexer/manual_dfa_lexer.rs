@@ -126,16 +126,17 @@ impl<'this> Lexer<'this> for ManualDFALexer<'this> {
                     return Some(Ok(token));
                 }
 
-                let err = TppCompilerError::new_lexer(
-                    "ERR-LEX-INV-CHAR",
-                    self.force_error_key,
-                    char.to_string(),
-                    self.line_number,
-                    self.get_column(self.data, self.cursor),
-                    None,
-                );
-
-                return Some(Err(err));
+                if char.is_numeric() {
+                    let err = TppCompilerError::new_lexer(
+                        "ERR-LEX-INV-CHAR",
+                        self.force_error_key,
+                        char.to_string(),
+                        self.line_number,
+                        self.get_column(self.data, self.cursor),
+                        None,
+                    );
+                    return Some(Err(err));
+                }
             }
 
             self.next_cursor_value += 1;
