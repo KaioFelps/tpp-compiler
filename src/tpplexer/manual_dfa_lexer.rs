@@ -23,7 +23,8 @@ static SCIENTIFIC_NOTATION: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 static FLOATING_POINT: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(formatcp!("^[0-9]\\.[0-9]+([Ee]{NUMBER_PATTERN})?")).expect("REGEX de número flutuante mal formado")
+    Regex::new(formatcp!("^[0-9]\\.(?:[0-9]+(?:[Ee]{NUMBER_PATTERN})?)?"))
+        .expect("REGEX de número flutuante mal formado")
 });
 
 const OTHER_CHARS_TO_IGNORE: [char; 3] = [' ', '\t', '\r'];
