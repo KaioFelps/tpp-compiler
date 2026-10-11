@@ -9,7 +9,6 @@ use log::debug;
 use regex::Regex;
 use std::{collections::HashMap, str::Chars, sync::LazyLock};
 
-const LETTER: &str = "[a-zA-ZÀ-ÿ]";
 const NUMBER: &str = "[\\+-]?[0-9]+";
 
 static NUMBER_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(NUMBER).expect("REGEX de número mal formado"));
@@ -122,11 +121,11 @@ impl<'this> Lexer<'this> for ManualDFALexer<'this> {
                 return Some(Ok(self.lookahead_check_identifier_or_reserved_word(&mut iterator)));
             }
 
-            if char.is_numeric() {
+            if char.is_numeric() || char == '+' || char == '-' {
                 if let Some(token) = self
                     .lookahead_check_scientific_notation(&mut iterator)
-                    .or(self.lookahead_check_floating())
-                    .or(self.lookahead_check_number())
+                    .or_else(|| self.lookahead_check_floating(&mut iterator))
+                    .or_else(|| self.lookahead_check_number(&mut iterator))
                 {
                     return Some(Ok(token));
                 }
@@ -160,7 +159,7 @@ impl<'this> Lexer<'this> for ManualDFALexer<'this> {
 
             if let Some(token_kind) = SINGLE_CHAR_SYMBOLS.get(&char).cloned() {
                 if CHARS_THAT_CAN_BE_SINGLE_OR_PAIRS.contains(&char)
-                    && let Some(next_char) = self.peek_char(1, &mut iterator)
+                    && let Some(next_char) = iterator.peek().cloned()
                     && let Some(token_kind) = CHAR_PAIRS_SYMBOLS_THAT_INTERSECTS_WITH_SINGLE_CHAR_SYMBOLS
                         .get(format!("{char}{next_char}").as_str())
                         .cloned()
@@ -180,7 +179,7 @@ impl<'this> Lexer<'this> for ManualDFALexer<'this> {
             }
 
             if FIRST_CHARS_OF_CHAR_PAIR_TOKENS.contains(&char)
-                && let Some(next_char) = self.peek_char(1, &mut iterator)
+                && let Some(next_char) = iterator.peek().cloned()
                 && let Some(token_kind) = CHAR_PAIRS_SYMBOLS.get(format!("{char}{next_char}").as_str()).cloned()
             {
                 self.next_cursor_value += 1;
@@ -227,27 +226,13 @@ impl<'this> ManualDFALexer<'this> {
         )
     }
 
-    /// Look the char `offset` positions ahead from the cursor.
-    fn peek_char(&self, offset: usize, iterator: &mut MultiPeek<Chars<'_>>) -> Option<char> {
-        iterator.reset_peek();
-        if offset == 0 {
-            return None;
-        }
-
-        let mut peek = None;
-        for _ in 0..offset {
-            peek = iterator.peek().cloned();
-        }
-
-        peek
-    }
-
     /// Mounts a lexeme and transform it in the ID token (or the most appropriate kind).
     ///
     /// It **does** update the cursor and leave it ready to lex the next char.
     fn lookahead_check_identifier_or_reserved_word(&mut self, iterator: &mut MultiPeek<Chars<'_>>) -> Token<'this> {
         let mut offset = 1;
-        while let Some(char) = self.peek_char(offset, iterator) {
+        iterator.reset_peek();
+        while let Some(char) = iterator.peek().cloned() {
             if char.is_alphanumeric() || char == '_' {
                 offset += 1;
                 continue;
@@ -277,6 +262,7 @@ impl<'this> ManualDFALexer<'this> {
             // creates a temporary iterator, which might seem heavy, but it has just few characters of length so
             // it weights nothing at all
             let lexeme_len = lexeme_str.chars().count();
+
             self.next_cursor_value = self.cursor + lexeme_len;
             let _ = iterator.nth(lexeme_len);
 
@@ -293,11 +279,45 @@ impl<'this> ManualDFALexer<'this> {
         None
     }
 
-    fn lookahead_check_floating(&mut self) -> Option<Token<'this>> {
+    fn lookahead_check_floating(&mut self, iterator: &mut MultiPeek<Chars<'_>>) -> Option<Token<'this>> {
+        if let Some(lexeme) = FLOATING_POINT.find_at(self.data, self.cursor) {
+            let lexeme_str = lexeme.as_str();
+            let lexeme_len = lexeme_str.chars().count();
+
+            self.next_cursor_value = self.cursor + lexeme_len;
+            let _ = iterator.nth(lexeme_len);
+
+            debug!(
+                r#"[Lexer] Formou número de ponto flutuante "{lexeme_str}" no intervalo [{}, {}[ do código fonte."#,
+                self.cursor,
+                self.cursor + lexeme_len
+            );
+
+            let token = self.prepare_token(TokenKind::NumPontoFlutuante, lexeme_str);
+            return Some(token);
+        }
+
         None
     }
 
-    fn lookahead_check_number(&mut self) -> Option<Token<'this>> {
+    fn lookahead_check_number(&mut self, iterator: &mut MultiPeek<Chars<'_>>) -> Option<Token<'this>> {
+        if let Some(lexeme) = NUMBER_REGEX.find_at(self.data, self.cursor) {
+            let lexeme_str = lexeme.as_str();
+            let lexeme_len = lexeme_str.chars().count();
+
+            self.next_cursor_value = self.cursor + lexeme_len;
+            let _ = iterator.nth(lexeme_len);
+
+            debug!(
+                r#"[Lexer] Formou número inteiro "{lexeme_str}" no intervalo [{}, {}[ do código fonte."#,
+                self.cursor,
+                self.cursor + lexeme_len
+            );
+
+            let token = self.prepare_token(TokenKind::NumInteiro, lexeme_str);
+            return Some(token);
+        }
+
         None
     }
 }
