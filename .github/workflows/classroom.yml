@@ -1,9 +1,6 @@
 name: GitHub Classroom Workflow
 
-on: []
-
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+on: [push]
 
 permissions:
   checks: write
@@ -15,5 +12,9 @@ jobs:
     name: Autograding
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
+
+      - name: Instalar dependências extras para o Autograding
+        run: sudo pip install automata-lib configparser --break-system-packages
+
       - uses: education/autograding@v1
