@@ -87,3 +87,15 @@ Rust a reconhecer somente as mesmas letras que as demais implementações.
 
 Essa opção é desabilitada por padrão, porém será sempre habilitada em todos os testes que comparam
 as saídas de erros e tokens entre as implementações a fim de estabelecer compatibilidade.
+
+## Números com Sinais
+Números podem ser definidos com ou sem sinal, isto é, -1, 1, +1 são definições válidas de um número.
+Num primeiro momento, o lexer agruparia todo sinal seguido de números como um número decimal ou
+inteiro. Isso, no entanto, pode causar conflitos quando se estiver analisando uma expressão (e não
+uma atribuição/sentença). Por exemplo, em `a+2`, é esperado que se obtenha os _tokens_
+$(\mathit{ID},\mathit{MAIS},\mathit{NUM_INTEIRO})$. No entanto, com esse agrupamento, seria obtido
+somente $(\mathit{ID},\mathit{NUM_INTEIRO})$.
+
+Assim, alterou-se a implementação para considerar todo `+` e `-` exclusivamente como os seus próprios
+_tokens_, isto é, não mais compondo inteiros. Dessa forma, será responsabilidade da análise sintática,
+a ser realizada posteriormente, ditar se o símbolo é um sinal do número ou um operador.

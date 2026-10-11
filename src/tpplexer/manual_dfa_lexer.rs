@@ -17,17 +17,13 @@ static IDENTIFIER_ALPHABET_SUBSET: [char; 66] = [
     'U', 'V', 'W', 'X', 'Y', 'Z', 'á', 'Á', 'ã', 'Ã', 'à', 'À', 'é', 'É', 'í', 'Í', 'ó', 'Ó', 'õ', 'Õ',
 ];
 
-static NUMBER_REGEX: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(formatcp!("^{NUMBER_PATTERN}")).expect("REGEX de número mal formado"));
-
 static SCIENTIFIC_NOTATION: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(formatcp!("^[\\+-]?[1-9]\\.[0-9]+[Ee](?:{NUMBER_PATTERN})?"))
         .expect("REGEX de notação científica mal formado")
 });
 
 static FLOATING_POINT: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(formatcp!("^{NUMBER_PATTERN}\\.[0-9]+([Ee]{NUMBER_PATTERN})?"))
-        .expect("REGEX de número flutuante mal formado")
+    Regex::new(formatcp!("^[0-9]\\.[0-9]+([Ee]{NUMBER_PATTERN})?")).expect("REGEX de número flutuante mal formado")
 });
 
 const OTHER_CHARS_TO_IGNORE: [char; 3] = [' ', '\t', '\r'];
@@ -140,7 +136,7 @@ impl<'this> Lexer<'this> for ManualDFALexer<'this> {
             }
 
             if char.is_numeric() || char == '+' || char == '-' {
-                if let Some(token) = self.lookahead_check_number(&mut iterator) {
+                if let Some(token) = self.lookahead_check_number(&mut iterator, char) {
                     return Some(Ok(token));
                 }
 
@@ -294,18 +290,18 @@ impl<'this> ManualDFALexer<'this> {
         self.prepare_token(token_kind, lexeme)
     }
 
-    fn lookahead_check_number(&mut self, iterator: &mut MultiPeek<Chars<'_>>) -> Option<Token<'this>> {
-        let regexes = [&SCIENTIFIC_NOTATION, &FLOATING_POINT, &NUMBER_REGEX];
-        let log_kind = ["número por notação científica", "decimal", "número inteiro"];
-        let kind = [
-            TokenKind::NumNotacaoCientifica,
-            TokenKind::NumPontoFlutuante,
-            TokenKind::NumInteiro,
-        ];
+    fn lookahead_check_number(
+        &mut self,
+        iterator: &mut MultiPeek<Chars<'_>>,
+        first_char: char,
+    ) -> Option<Token<'this>> {
+        let regexes = [&SCIENTIFIC_NOTATION, &FLOATING_POINT];
+        let log_kind = ["número por notação científica", "decimal"];
+        let kind = [TokenKind::NumNotacaoCientifica, TokenKind::NumPontoFlutuante];
 
         let view = &self.data[self.cursor..];
 
-        for i in 0..3 {
+        for i in 0..2 {
             if let Some(lexeme_matched) = regexes[i].find(view) {
                 let lexeme_str = lexeme_matched.as_str();
                 let byte_len = lexeme_str.len();
@@ -330,7 +326,36 @@ impl<'this> ManualDFALexer<'this> {
             }
         }
 
-        None
+        if !first_char.is_numeric() {
+            return None;
+        }
+
+        let mut bytes_offset = first_char.len_utf8();
+        let mut chars_to_consume = 0;
+
+        iterator.reset_peek();
+        while let Some(char) = iterator.peek() {
+            if !char.is_numeric() {
+                break;
+            }
+            bytes_offset += char.len_utf8();
+            chars_to_consume += 1;
+        }
+
+        self.next_cursor_value = self.cursor + bytes_offset;
+        for _ in 0..chars_to_consume {
+            let _ = iterator.next();
+        }
+
+        let lexeme_str = &self.data[self.cursor..(self.cursor + bytes_offset)];
+
+        debug!(
+            r#"[Lexer] Formou número inteiro "{lexeme_str}" no intervalo [{}, {}[ do código fonte."#,
+            self.cursor,
+            self.cursor + bytes_offset
+        );
+
+        Some(self.prepare_token(TokenKind::NumInteiro, lexeme_str))
     }
 
     fn lookahead_check_comment(
