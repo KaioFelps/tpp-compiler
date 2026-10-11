@@ -116,3 +116,78 @@ chamadas para o analisador léxico diretamente do script Python sem uso de FFI �
 demásia e que não agregaria nada de relevante para o trabalho.
 
 [Identificadores]: #identificadores
+
+## Benchmarks
+Após configurar o arquivo de _benchmarks_, o Rust apresentava execuções com resultados com altas
+variações: hora inferior às implementações em Python, hora superior:
+
+### Execução 1 (sem warm-up do _lexer_ Rust)
+| Estratégia | Tokens | Tempo Médio (s) | Tempo Mín (s) | Vazão (tokens/s) | Relativo (vs PLY) |
+| --- | --- | --- | --- | --- | --- |
+| ply | 73.000 | 0.0949s | 0.0896s | 769.214 tok/s | 1.00x (baseline) |
+| mandfa | 73.000 | 0.1178s | 0.1097s | 619.927 tok/s | 0.81x |
+| symtable | 73.000 | 0.1291s | 0.1198s | 565.520 tok/s | 0.74x |
+| symtableman | 73.000 | 0.1388s | 0.1251s | 526.034 tok/s | 0.68x |
+| automatalib | 73.000 | 0.1126s | 0.1091s | 648.559 tok/s | 0.84x |
+| automatalibman | 73.000 | 0.1118s | 0.1082s | 652.681 tok/s | 0.85x |
+| rust | 73.000 | 0.1915s | 0.0374s | 381.260 tok/s | 0.50x |
+
+### Execução 2 (sem warm-up do _lexer_ Rust)
+| Estratégia | Tokens | Tempo Médio (s) | Tempo Mín (s) | Vazão (tokens/s) | Relativo (vs PLY) |
+| --- | --- | --- | --- | --- | --- |
+| ply | 73.000 | 0.1046s | 0.0881s | 698.003 tok/s | 1.00x (baseline) |
+| mandfa | 73.000 | 0.1125s | 0.1074s | 649.014 tok/s | 0.93x |
+| symtable | 73.000 | 0.1279s | 0.1241s | 570.926 tok/s | 0.82x |
+| symtableman | 73.000 | 0.1332s | 0.1321s | 548.186 tok/s | 0.79x |
+| automatalib | 73.000 | 0.1130s | 0.1093s | 645.945 tok/s | 0.93x |
+| automatalibman | 73.000 | 0.1178s | 0.1168s | 619.478 tok/s | 0.89x |
+| rust | 73.000 | 0.0664s | 0.0384s | 1.099.162 tok/s | 1.57x |
+
+### Execução 3 (sem warm-up do _lexer_ Rust)
+| Estratégia | Tokens | Tempo Médio (s) | Tempo Mín (s) | Vazão (tokens/s) | Relativo (vs PLY) |
+| --- | --- | --- | --- | --- | --- |
+| ply | 73.000 | 0.0930s | 0.0914s | 784.900 tok/s | 1.00x (baseline) |
+| mandfa | 73.000 | 0.1155s | 0.1132s | 631.982 tok/s | 0.81x |
+| symtable | 73.000 | 0.1250s | 0.1214s | 584.010 tok/s | 0.74x |
+| symtableman | 73.000 | 0.1293s | 0.1272s | 564.473 tok/s | 0.72x |
+| automatalib | 73.000 | 0.1148s | 0.1100s | 636.017 tok/s | 0.81x |
+| automatalibman | 73.000 | 0.1153s | 0.1111s | 632.955 tok/s | 0.81x |
+| rust | 73.000 | 0.0893s | 0.0368s | 817.339 tok/s | 1.04x 
+
+Ao adicionar uma execução de warm-up — que neste caso, serve apenas para carregar o binário executável
+na memória RAM, não para performar algumas compilações (JIT) como nas versões com Python —, os resultados
+melhoraram significativamente, mostrando uma eficiência quase 3 vezes maior em relação à implementação
+base (PLY).
+
+### Execução 1 (com warm-up do _lexer_ Rust)
+| Estratégia | Tokens | Tempo Médio (s) | Tempo Mín (s) | Vazão (tokens/s) | Relativo (vs PLY) |
+| --- | --- | --- | --- | --- | --- |
+| ply | 73.000 | 0.0888s | 0.0871s | 821.789 tok/s | 1.00x (baseline) |
+| mandfa | 73.000 | 0.1155s | 0.1127s | 632.132 tok/s | 0.77x |
+| symtable | 73.000 | 0.1235s | 0.1185s | 591.183 tok/s | 0.72x |
+| symtableman | 73.000 | 0.1273s | 0.1240s | 573.543 tok/s | 0.70x |
+| automatalib | 73.000 | 0.1121s | 0.1088s | 651.256 tok/s | 0.79x |
+| automatalibman | 73.000 | 0.1145s | 0.1117s | 637.771 tok/s | 0.78x |
+| rust | 73.000 | 0.0402s | 0.0373s | 1.818.057 tok/s | 2.21x |
+
+### Execução 2 (com warm-up do _lexer_ Rust)
+| Estratégia | Tokens | Tempo Médio (s) | Tempo Mín (s) | Vazão (tokens/s) | Relativo (vs PLY) |
+| --- | --- | --- | --- | --- | --- |
+| ply | 73.000 | 0.1118s | 0.0906s | 652.892 tok/s | 1.00x (baseline) |
+| mandfa | 73.000 | 0.1200s | 0.1185s | 608.399 tok/s | 0.93x |
+| symtable | 73.000 | 0.1323s | 0.1309s | 551.981 tok/s | 0.85x |
+| symtableman | 73.000 | 0.1271s | 0.1226s | 574.335 tok/s | 0.88x |
+| automatalib | 73.000 | 0.1122s | 0.1090s | 650.529 tok/s | 1.00x |
+| automatalibman | 73.000 | 0.1267s | 0.1193s | 576.277 tok/s | 0.88x |
+| rust | 73.000 | 0.0401s | 0.0393s | 1.819.951 tok/s | 2.79x |
+
+### Execução 3 (com warm-up do _lexer_ Rust)
+| Estratégia | Tokens | Tempo Médio (s) | Tempo Mín (s) | Vazão (tokens/s) | Relativo (vs PLY) |
+| --- | --- | --- | --- | --- | --- |
+| ply | 73.000 | 0.0929s | 0.0880s | 785.667 tok/s | 1.00x (baseline) |
+| mandfa | 73.000 | 0.1127s | 0.1067s | 647.626 tok/s | 0.82x |
+| symtable | 73.000 | 0.1265s | 0.1201s | 577.093 tok/s | 0.73x |
+| symtableman | 73.000 | 0.1271s | 0.1250s | 574.222 tok/s | 0.73x |
+| automatalib | 73.000 | 0.1132s | 0.1096s | 644.949 tok/s | 0.82x |
+| automatalibman | 73.000 | 0.1121s | 0.1087s | 650.919 tok/s | 0.83x |
+| rust | 73.000 | 0.0366s | 0.0351s | 1.996.396 tok/s | 2.54x |
