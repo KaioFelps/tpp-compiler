@@ -1,15 +1,13 @@
-use itertools::{Itertools, MultiPeek};
-use std::{collections::HashMap, str::Chars, sync::LazyLock};
-
-use const_format::formatcp;
-use log::debug;
-use regex::Regex;
-
 use crate::{
     errors::TppCompilerError,
     token::{Token, TokenKind},
     tpplexer::Lexer,
 };
+use const_format::formatcp;
+use itertools::{Itertools, MultiPeek};
+use log::debug;
+use regex::Regex;
+use std::{collections::HashMap, str::Chars, sync::LazyLock};
 
 const LETTER: &str = "[a-zA-ZÀ-ÿ]";
 const NUMBER: &str = "[\\+-]?[0-9]+";
@@ -40,6 +38,53 @@ static RESERVED_WORDS: LazyLock<HashMap<&str, TokenKind>> = LazyLock::new(|| {
     ])
 });
 
+/// Chars that can be either a single symbol but can also form a pair
+const CHARS_THAT_CAN_BE_SINGLE_OR_PAIRS: [char; 3] = ['<', '>', ':'];
+static SINGLE_CHAR_SYMBOLS: LazyLock<HashMap<char, TokenKind>> = LazyLock::new(|| {
+    HashMap::from_iter([
+        ('(', TokenKind::AbreParentese),
+        (')', TokenKind::FechaParentese),
+        ('[', TokenKind::AbreColchete),
+        (']', TokenKind::FechaColchete),
+        ('!', TokenKind::Nao),
+        ('=', TokenKind::Igual),
+        ('<', TokenKind::Menor),
+        ('>', TokenKind::Maior),
+        (',', TokenKind::Virgula),
+        ('/', TokenKind::Divide),
+        ('*', TokenKind::Vezes),
+        ('+', TokenKind::Mais),
+        ('-', TokenKind::Menos),
+        (':', TokenKind::DoisPontos),
+    ])
+});
+/// Pairs of chars that forms a token but that intersects with single char symbols.
+static CHAR_PAIRS_SYMBOLS_THAT_INTERSECTS_WITH_SINGLE_CHAR_SYMBOLS: LazyLock<HashMap<&str, TokenKind>> =
+    LazyLock::new(|| {
+        HashMap::from_iter([
+            ("<>", TokenKind::Diferente),
+            ("<=", TokenKind::MenorIgual),
+            (">=", TokenKind::MaiorIgual),
+            (":=", TokenKind::Atribuicao),
+        ])
+    });
+
+/// Chars that init a pair of chars that forms a valid token. None of these
+/// intersects with tokens formed by single chars. (I.e., it's disjoint of single-chair tokens set.)
+const FIRST_CHARS_OF_CHAR_PAIR_TOKENS: [char; 3] = ['&', '|', ':'];
+static CHAR_PAIRS_SYMBOLS: LazyLock<HashMap<&str, TokenKind>> =
+    LazyLock::new(|| HashMap::from_iter([("&&", TokenKind::E), ("||", TokenKind::Ou)]));
+
+#[inline]
+fn log_lexeme_found(lexeme: &str, pos: usize, token_kind: TokenKind) {
+    debug!(r#"[Lexer] Lexema "{lexeme}" identificado na posição {pos} como {token_kind:?}."#);
+}
+
+#[inline]
+fn log_lexeme_char_found(lexeme: char, pos: usize, token_kind: TokenKind) {
+    debug!(r#"[Lexer] Lexema "{lexeme}" identificado na posição {pos} como {token_kind:?}."#);
+}
+
 pub struct ManualDFALexer<'this> {
     /// A view of the whole source code string.
     data: &'this str,
@@ -51,49 +96,6 @@ pub struct ManualDFALexer<'this> {
     line_number: usize,
     /// Whether the errors should have `force_key` option enabled.
     force_error_key: bool,
-}
-
-/// Chars that can be either a single symbol but can also form a pair
-static CHARS_THAT_CAN_BE_SINGLE_OR_PAIRS: [char; 3] = [':', '<', '>'];
-
-static SINGLE_CHAR_SYMBOLS: LazyLock<HashMap<char, TokenKind>> = LazyLock::new(|| {
-    HashMap::from_iter([
-        ('(', TokenKind::AbreParentese),
-        (')', TokenKind::FechaParentese),
-        ('[', TokenKind::AbreColchete),
-        (']', TokenKind::FechaColchete),
-        ('!', TokenKind::FechaColchete),
-        ('=', TokenKind::Igual),
-        ('<', TokenKind::Menor),
-        ('>', TokenKind::Maior),
-        (',', TokenKind::Virgula),
-        ('/', TokenKind::Divide),
-        ('*', TokenKind::Vezes),
-        ('+', TokenKind::Mais),
-        ('-', TokenKind::Menos),
-    ])
-});
-
-/// Pairs of chars that forms a token but that intersects with single char symbols.
-static CHAR_PAIRS_SYMBOLS: LazyLock<HashMap<&str, TokenKind>> = LazyLock::new(|| {
-    HashMap::from_iter([
-        ("<>", TokenKind::AbreParentese),
-        ("<=", TokenKind::AbreParentese),
-        (">=", TokenKind::AbreParentese),
-        ("", TokenKind::AbreParentese),
-        ("", TokenKind::AbreParentese),
-        ("", TokenKind::AbreParentese),
-    ])
-});
-
-#[inline]
-fn log_lexeme_found(lexeme: &str, pos: usize, token_kind: TokenKind) {
-    debug!(r#"[Lexer] Lexema "{lexeme}" identificado na posição {pos} como {token_kind:?}."#);
-}
-
-#[inline]
-fn log_lexeme_char_found(lexeme: char, pos: usize, token_kind: TokenKind) {
-    debug!(r#"[Lexer] Lexema "{lexeme}" identificado na posição {pos} como {token_kind:?}."#);
 }
 
 impl<'this> Lexer<'this> for ManualDFALexer<'this> {
@@ -159,14 +161,16 @@ impl<'this> Lexer<'this> for ManualDFALexer<'this> {
             if let Some(token_kind) = SINGLE_CHAR_SYMBOLS.get(&char).cloned() {
                 if CHARS_THAT_CAN_BE_SINGLE_OR_PAIRS.contains(&char)
                     && let Some(next_char) = self.peek_char(1, &mut iterator)
-                    && let Some(token_kind) = CHAR_PAIRS_SYMBOLS.get(format!("{char}{next_char}").as_str()).cloned()
+                    && let Some(token_kind) = CHAR_PAIRS_SYMBOLS_THAT_INTERSECTS_WITH_SINGLE_CHAR_SYMBOLS
+                        .get(format!("{char}{next_char}").as_str())
+                        .cloned()
                 {
                     let _ = iterator.next();
                     self.next_cursor_value += 1;
 
                     let lexeme = format!("{char}{next_char}");
                     log_lexeme_found(&lexeme, self.cursor, token_kind.clone());
-                    let token = self.prepare_token(token_kind, &self.data[self.cursor..=(self.cursor + 1)]);
+                    let token = self.prepare_token(token_kind, &self.data[self.cursor..self.next_cursor_value]);
                     return Some(Ok(token));
                 }
 
@@ -175,14 +179,16 @@ impl<'this> Lexer<'this> for ManualDFALexer<'this> {
                 return Some(Ok(token));
             }
 
-            if char == ':'
+            if FIRST_CHARS_OF_CHAR_PAIR_TOKENS.contains(&char)
                 && let Some(next_char) = self.peek_char(1, &mut iterator)
-                && next_char == '='
+                && let Some(token_kind) = CHAR_PAIRS_SYMBOLS.get(format!("{char}{next_char}").as_str()).cloned()
             {
                 self.next_cursor_value += 1;
                 let _ = iterator.next();
-                log_lexeme_found(":=", self.cursor, TokenKind::Igual);
-                let token = self.prepare_token(TokenKind::Atribuicao, &self.data[self.cursor..self.next_cursor_value]);
+
+                let lexeme = format!("{char}{next_char}");
+                log_lexeme_found(&lexeme, self.cursor, token_kind.clone());
+                let token = self.prepare_token(token_kind, &self.data[self.cursor..self.next_cursor_value]);
                 return Some(Ok(token));
             }
 
