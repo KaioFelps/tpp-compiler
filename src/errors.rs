@@ -4,9 +4,9 @@ use std::{collections::HashMap, fmt::Display, sync::LazyLock};
 
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum ErrorSection {
-    GlobalError,
-    LexerError,
-    ParserError,
+    Global,
+    Lexer,
+    Parser,
     // SemanticError,
     // CodeGenError,
 }
@@ -15,9 +15,9 @@ impl<T: AsRef<str>> From<T> for ErrorSection {
     fn from(value: T) -> Self {
         let value = value.as_ref();
         match value {
-            "GlobalErrors" | "globalerrors" => Self::GlobalError,
-            "LexerErrors" | "lexererrors" => Self::LexerError,
-            "ParserErrors" | "parsererrors" => Self::ParserError,
+            "GlobalErrors" | "globalerrors" => Self::Global,
+            "LexerErrors" | "lexererrors" => Self::Lexer,
+            "ParserErrors" | "parsererrors" => Self::Parser,
             // "semanticerror" => Self::SemanticError,
             // "codegenerror" => Self::CodeGenError,
             _ => panic!("Um erro não registrado tentou ser convertido em uma variante de `ErrorSection`: {value}"),
@@ -28,9 +28,9 @@ impl<T: AsRef<str>> From<T> for ErrorSection {
 impl Display for ErrorSection {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let string = match self {
-            ErrorSection::GlobalError => "GlobalError".to_string(),
-            ErrorSection::LexerError => "LexerError".to_string(),
-            ErrorSection::ParserError => "ParserError".to_string(),
+            ErrorSection::Global => "GlobalError".to_string(),
+            ErrorSection::Lexer => "LexerError".to_string(),
+            ErrorSection::Parser => "ParserError".to_string(),
             // ErrorSection::SemanticError => "SemanticError".to_string(),
             // ErrorSection::CodeGenError => "CodeGenError".to_string(),
         };
