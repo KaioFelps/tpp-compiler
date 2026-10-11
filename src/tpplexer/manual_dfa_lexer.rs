@@ -6,6 +6,7 @@ use log::debug;
 use regex::Regex;
 
 use crate::{
+    errors::TppCompilerError,
     token::{Token, TokenKind},
     tpplexer::Lexer,
 };
@@ -48,6 +49,8 @@ pub struct ManualDFALexer<'this> {
     next_cursor_value: usize,
     /// The current line in the source code.
     line_number: usize,
+    /// Whether the errors should have `force_key` option enabled.
+    force_error_key: bool,
 }
 
 #[inline]
@@ -56,7 +59,7 @@ fn log_lexeme_found(lexeme: &str, pos: usize, token_kind: TokenKind) {
 }
 
 impl<'this> Lexer<'this> for ManualDFALexer<'this> {
-    fn next_token(&mut self) -> Option<Token<'this>> {
+    fn next_token(&mut self) -> Option<Result<Token<'this>, TppCompilerError>> {
         // last calls to `next_token` might have updated `self.next_cursor_value` but left
         // without updating self.cursor, so we defer this responsability to `next_token` itself.
         // won't affect the first char reading since `next_cursor_value` is initialized as the
@@ -76,7 +79,7 @@ impl<'this> Lexer<'this> for ManualDFALexer<'this> {
             debug!("[Lexer] Aplicando análise léxica em '{char}' ({}).", self.cursor);
 
             if char.is_alphabetic() || char == '_' {
-                return Some(self.lookahead_check_identifier_or_reserved_word(&mut iterator));
+                return Some(Ok(self.lookahead_check_identifier_or_reserved_word(&mut iterator)));
             }
 
             if char.is_numeric() {
@@ -85,10 +88,19 @@ impl<'this> Lexer<'this> for ManualDFALexer<'this> {
                     .or(self.lookahead_check_floating())
                     .or(self.lookahead_check_number())
                 {
-                    return Some(token);
+                    return Some(Ok(token));
                 }
 
-                panic!("retornar erro");
+                let err = TppCompilerError::new_lexer(
+                    "ERR-LEX-INV-CHAR",
+                    self.force_error_key,
+                    char.to_string(),
+                    self.line_number,
+                    self.get_column(self.data, self.cursor),
+                    None,
+                );
+
+                return Some(Err(err));
             }
 
             self.next_cursor_value += 1;
@@ -97,7 +109,7 @@ impl<'this> Lexer<'this> for ManualDFALexer<'this> {
                 self.line_number += 1;
                 debug!(
                     "[Lexer] Quebra de linha identificada. Mudando para a linha {}.",
-                    self.line_number + 1
+                    self.line_number
                 );
                 continue;
             }
@@ -108,7 +120,8 @@ impl<'this> Lexer<'this> for ManualDFALexer<'this> {
 
             if char == '=' {
                 log_lexeme_found("=", self.cursor, TokenKind::Igual);
-                return Some(self.prepare_token(TokenKind::Igual, &self.data[self.cursor..self.next_cursor_value]));
+                let token = self.prepare_token(TokenKind::Igual, &self.data[self.cursor..self.next_cursor_value]);
+                return Some(Ok(token));
             }
 
             if char == ':'
@@ -118,9 +131,8 @@ impl<'this> Lexer<'this> for ManualDFALexer<'this> {
                 self.next_cursor_value += 1;
                 let _ = iterator.next();
                 log_lexeme_found(":=", self.cursor, TokenKind::Igual);
-                return Some(
-                    self.prepare_token(TokenKind::Atribuicao, &self.data[self.cursor..self.next_cursor_value]),
-                );
+                let token = self.prepare_token(TokenKind::Atribuicao, &self.data[self.cursor..self.next_cursor_value]);
+                return Some(Ok(token));
             }
         }
 
@@ -129,12 +141,13 @@ impl<'this> Lexer<'this> for ManualDFALexer<'this> {
 }
 
 impl<'this> ManualDFALexer<'this> {
-    pub fn new(data: &'this str) -> Self {
+    pub fn new(data: &'this str, force_error_key: bool) -> Self {
         Self {
             cursor: 0,
             next_cursor_value: 0,
-            line_number: 0,
+            line_number: 1,
             data,
+            force_error_key,
         }
     }
 
@@ -200,6 +213,12 @@ impl<'this> ManualDFALexer<'this> {
             let lexeme_len = lexeme_str.chars().count();
             self.next_cursor_value = self.cursor + lexeme_len;
             let _ = iterator.nth(lexeme_len);
+
+            debug!(
+                r#"[Lexer] Formou número de notação científica "{lexeme_str}" no intervalo [{}, {}[ do código fonte."#,
+                self.cursor,
+                self.cursor + lexeme_len
+            );
 
             let token = self.prepare_token(TokenKind::NumNotacaoCientifica, lexeme_str);
             return Some(token);

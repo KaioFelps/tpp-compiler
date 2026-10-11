@@ -1,19 +1,19 @@
 mod manual_dfa_lexer;
 
-use crate::token::Token;
+use crate::{errors::TppCompilerError, token::Token};
 pub use manual_dfa_lexer::*;
 
 pub trait Lexer<'this> {
     /// Lexes the next token.
-    fn next_token(&mut self) -> Option<Token<'this>>;
+    fn next_token(&mut self) -> Option<Result<Token<'this>, TppCompilerError>>;
 
     /// Consumes the whole input and return the list of every token extracted from it.
-    fn tokenize(&mut self) -> Vec<Token<'this>> {
+    fn tokenize(&mut self) -> Result<Vec<Token<'this>>, TppCompilerError> {
         self.get_tokens().collect()
     }
 
     /// Gets a tokens iterator streaming over the input.
-    fn get_tokens(&mut self) -> Box<dyn Iterator<Item = Token<'this>> + '_> {
+    fn get_tokens(&mut self) -> Box<dyn Iterator<Item = Result<Token<'this>, TppCompilerError>> + '_> {
         Box::new(std::iter::from_fn(move || self.next_token()))
     }
 
