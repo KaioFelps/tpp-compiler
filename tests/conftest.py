@@ -1,5 +1,7 @@
+import subprocess
 import sys
 from pathlib import Path
+import pytest
 
 # Adiciona a raiz do projeto ao sys.path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -10,8 +12,8 @@ def pytest_addoption(parser):
         "--lexer",
         action="store",
         default="ply",
-        choices=["all", "ply", "mandfa", "symtable", "symtableman", "automatalib", "automatalibman"],
-        help="Especifica qual lexer testar: ply, mandfa, symtable, symtableman, automatalib, automatalibman ou all (padrão: ply)",
+        choices=["all", "ply", "mandfa", "symtable", "symtableman", "automatalib", "automatalibman", "rust"],
+        help="Especifica qual lexer testar: ply, mandfa, symtable, symtableman, automatalib, automatalibman, rust ou all (padrão: ply)",
     )
 
 def pytest_collection_modifyitems(config, items):
@@ -36,3 +38,13 @@ def pytest_collection_modifyitems(config, items):
     if deselected:
         config.hook.pytest_deselected(items=deselected)
         items[:] = selected
+
+        import subprocess
+
+@pytest.fixture(scope="session", autouse=True)
+def build_rust_binary(request):
+    """Compila o projeto Rust em release uma única vez antes da sessão de testes."""
+    lexer_opt = request.config.getoption("lexer")
+    if lexer_opt == "all" or lexer_opt == "rust":
+        print("\n[+] Compilando o binário Rust (release)...")
+        subprocess.run(["cargo", "build", "--release", "-q"], check=True)

@@ -20,7 +20,7 @@ tppcompiler-code-start/
 │   │   ├── __init__.py                     # Factory get_lexer e exportações
 │   │   ├── base.py                         # Classe base abstrata (BaseLexer) e Token
 │   │   ├── LogErrorLexer.py                # Tratamento e formatação de erros léxicos
-│   │   ├── LexerErrorMessages.properties   # Mensagens de erro léxicas
+│   │   ├── __LexerErrorMessages.properties # Mensagens de erro léxicas
 │   │   ├── ply_lexer/                      # Estratégia PLY (tokens, regexs, methods, ply_lexer)
 │   │   ├── mandfa_lexer/                   # Estratégia DFA manual procedural
 │   │   ├── symtable_lexer/                 # Estratégias com Tabela de Símbolos
@@ -48,16 +48,10 @@ tppcompiler-code-start/
 
 Recomenda-se utilizar um ambiente virtual `Python` com a versão 3.10 ou superior.
 
-1. **Criar e ativar o ambiente virtual:**
-  ```bash
-  [tppcompiler-code-start]$ python3 -m venv .venv
-  [tppcompiler-code-start]$ source .venv/bin/activate
-  ```
-
-2. **Instalar as dependências do projeto:**
+1. **Instalar as dependências do projeto:**
 
   ```bash
-  [tppcompiler-code-start]$ pip install -r requirements.txt
+  [tppcompiler-code-start]$ uv sync
   ```
 
 As dependências principais incluem:
@@ -74,7 +68,7 @@ O ponto de entrada principal da `CLI` é o _script_ `src/tpp_compiler.py`.
 ### Sintaxe Básica
 
 ```bash
-[tppcompiler-code-start]$ python src/tpp_compiler.py --help
+[tppcompiler-code-start]$ uv run src/tpp_compiler.py --help
 usage: tpp_compiler.py [-h] [--lexer {ply,mandfa,symtable,symtableman,automatalib,automatalibman}] [--parser {yacc,topdown}] [--sema {sema}]
                        [--gencode {llvm}] [-k]
                        fonte
