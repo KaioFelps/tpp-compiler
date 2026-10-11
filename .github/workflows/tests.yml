@@ -19,7 +19,9 @@ jobs:
           python-version: "3.11"
 
       - name: Install dependencies
-        run: uv sync
+        run: |
+          uv export --all-groups > requirements.txt
+          uv pip install --system -r requirements.txt
 
       - name: Testes Léxicos
         if: hashFiles('tests/tpplex_test.py') != ''
@@ -36,4 +38,3 @@ jobs:
       - name: Testes Geração de Código
         if: hashFiles('tests/tppcodegen_test.py') != ''
         run: pytest tests/tppcodegen_test.py -v
-        
