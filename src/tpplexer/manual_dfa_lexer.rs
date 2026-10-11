@@ -9,14 +9,19 @@ use log::debug;
 use regex::Regex;
 use std::{collections::HashMap, str::Chars, sync::LazyLock};
 
-const NUMBER: &str = "[\\+-]?[0-9]+";
+const NUMBER_PATTERN: &str = r"[\+-]?[0-9]+";
 
-static NUMBER_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(NUMBER).expect("REGEX de número mal formado"));
+static NUMBER_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(formatcp!("^{NUMBER_PATTERN}")).expect("REGEX de número mal formado"));
+
 static SCIENTIFIC_NOTATION: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(formatcp!("[-\\+]?[1-9]\\.[0-9]+[Ee](?:{NUMBER})?")).expect("REGEX de notação científica mal formado")
+    Regex::new(formatcp!("^[\\+-]?[1-9]\\.[0-9]+[Ee](?:{NUMBER_PATTERN})?"))
+        .expect("REGEX de notação científica mal formado")
 });
+
 static FLOATING_POINT: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(formatcp!("{NUMBER}\\.[0-9]+([Ee]{NUMBER})?")).expect("REGEX de número flutuante mal formado")
+    Regex::new(formatcp!("^{NUMBER_PATTERN}\\.[0-9]+([Ee]{NUMBER_PATTERN})?"))
+        .expect("REGEX de número flutuante mal formado")
 });
 
 const OTHER_CHARS_TO_IGNORE: [char; 3] = [' ', '\t', '\r'];
@@ -118,7 +123,7 @@ impl<'this> Lexer<'this> for ManualDFALexer<'this> {
             debug!("[Lexer] Aplicando análise léxica em '{char}' ({}).", self.cursor);
 
             if char.is_alphabetic() || char == '_' {
-                return Some(Ok(self.lookahead_check_identifier_or_reserved_word(&mut iterator)));
+                return Some(Ok(self.lookahead_check_identifier_or_reserved_word(&mut iterator, char)));
             }
 
             if char.is_numeric() || char == '+' || char == '-' {
@@ -139,7 +144,7 @@ impl<'this> Lexer<'this> for ManualDFALexer<'this> {
                 }
             }
 
-            self.next_cursor_value += 1;
+            self.next_cursor_value += char.len_utf8();
 
             if char == '\n' {
                 self.line_number += 1;
@@ -162,7 +167,7 @@ impl<'this> Lexer<'this> for ManualDFALexer<'this> {
                         .cloned()
                 {
                     let _ = iterator.next();
-                    self.next_cursor_value += 1;
+                    self.next_cursor_value += next_char.len_utf8();
 
                     let lexeme = format!("{char}{next_char}");
                     log_lexeme_found(&lexeme, self.cursor, token_kind.clone());
@@ -179,7 +184,7 @@ impl<'this> Lexer<'this> for ManualDFALexer<'this> {
                 && let Some(next_char) = iterator.peek().cloned()
                 && let Some(token_kind) = CHAR_PAIRS_SYMBOLS.get(format!("{char}{next_char}").as_str()).cloned()
             {
-                self.next_cursor_value += 1;
+                self.next_cursor_value += next_char.len_utf8();
                 let _ = iterator.next();
 
                 let lexeme = format!("{char}{next_char}");
@@ -189,7 +194,7 @@ impl<'this> Lexer<'this> for ManualDFALexer<'this> {
             }
 
             if char == '{' {
-                if let Err(err) = self.lookahead_check_comment(&mut iterator) {
+                if let Err(err) = self.lookahead_check_comment(&mut iterator, char) {
                     return Some(Err(err));
                 }
                 continue;
@@ -233,30 +238,40 @@ impl<'this> ManualDFALexer<'this> {
     /// Mounts a lexeme and transform it in the ID token (or the most appropriate kind).
     ///
     /// It **does** update the cursor and leave it ready to lex the next char.
-    fn lookahead_check_identifier_or_reserved_word(&mut self, iterator: &mut MultiPeek<Chars<'_>>) -> Token<'this> {
-        let mut offset = 1;
+    fn lookahead_check_identifier_or_reserved_word(
+        &mut self,
+        iterator: &mut MultiPeek<Chars<'_>>,
+        first_char: char,
+    ) -> Token<'this> {
+        let mut byte_offset = first_char.len_utf8();
+        let mut chars_to_consume = 0;
+
         iterator.reset_peek();
         while let Some(char) = iterator.peek().cloned() {
             if char.is_alphanumeric() || char == '_' {
-                offset += 1;
+                byte_offset += char.len_utf8();
+                chars_to_consume += 1;
                 continue;
             }
             break;
         }
 
-        let lexeme = &self.data[self.cursor..(self.cursor + offset)];
+        self.next_cursor_value = self.cursor + byte_offset;
+        for _ in 0..chars_to_consume {
+            iterator.next();
+        }
+
+        let lexeme = &self.data[self.cursor..self.next_cursor_value];
 
         debug!(
             r#"[Lexer] Formou o lexema "{lexeme}" no intervalo [{}, {}[ do código fonte."#,
             self.cursor,
-            self.cursor + offset
+            self.cursor + byte_offset
         );
-
-        self.next_cursor_value = self.cursor + offset;
-        let _ = iterator.nth(offset);
 
         let token_kind = RESERVED_WORDS.get(lexeme).cloned().unwrap_or(TokenKind::Ident);
         log_lexeme_found(lexeme, self.cursor, token_kind.clone());
+
         self.prepare_token(token_kind, lexeme)
     }
 
@@ -269,23 +284,26 @@ impl<'this> ManualDFALexer<'this> {
             TokenKind::NumInteiro,
         ];
 
+        let view = &self.data[self.cursor..];
+
         for i in 0..3 {
-            let regex = regexes[i];
+            if let Some(lexeme_matched) = regexes[i].find(view) {
+                let lexeme_str = lexeme_matched.as_str();
+                let byte_len = lexeme_str.len();
 
-            if let Some(lexeme) = regex.find_at(self.data, self.cursor) {
-                let lexeme_str = lexeme.as_str();
-                // creates a temporary iterator, which might seem heavy, but it has just few characters of length so
-                // it weights nothing at all
-                let lexeme_len = lexeme_str.chars().count();
+                self.next_cursor_value = self.cursor + byte_len;
 
-                self.next_cursor_value = self.cursor + lexeme_len;
-                let _ = iterator.nth(lexeme_len);
+                // since the first charactere has been consumed on the main loop, we do -1
+                let chars_to_consume = lexeme_str.chars().count().saturating_sub(1);
+                for _ in 0..chars_to_consume {
+                    iterator.next();
+                }
 
                 debug!(
                     r#"[Lexer] Formou {} "{lexeme_str}" no intervalo [{}, {}[ do código fonte."#,
                     log_kind[i],
                     self.cursor,
-                    self.cursor + lexeme_len
+                    self.cursor + lexeme_str.len()
                 );
 
                 let token = self.prepare_token(kind[i].clone(), lexeme_str);
@@ -296,18 +314,22 @@ impl<'this> ManualDFALexer<'this> {
         None
     }
 
-    fn lookahead_check_comment(&mut self, iterator: &mut MultiPeek<Chars<'_>>) -> Result<(), TppCompilerError> {
-        let mut offset = 1;
+    fn lookahead_check_comment(
+        &mut self,
+        iterator: &mut MultiPeek<Chars<'_>>,
+        first_char: char,
+    ) -> Result<(), TppCompilerError> {
+        let mut byte_offset = first_char.len_utf8();
 
         for char in iterator.by_ref() {
-            offset += 1;
+            byte_offset += char.len_utf8();
 
             if char == '\n' {
                 self.line_number += 1;
             }
 
             if char == '}' {
-                self.next_cursor_value = self.cursor + offset;
+                self.next_cursor_value = self.cursor + byte_offset;
                 return Ok(());
             }
         }
@@ -315,7 +337,7 @@ impl<'this> ManualDFALexer<'this> {
         Err(TppCompilerError::new_lexer(
             "ERR-LEX-UNC-COMMENT",
             self.force_error_key,
-            self.data[self.cursor..(self.cursor + offset)].to_string(),
+            "".to_string(),
             self.line_number,
             self.get_column(self.data, self.cursor),
             None,
