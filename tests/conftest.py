@@ -10,8 +10,8 @@ def pytest_addoption(parser):
         "--lexer",
         action="store",
         default="ply",
-        choices=["all", "ply", "mandfa", "symtable", "symtableman", "automatalib", "automatalibman"],
-        help="Especifica qual lexer testar: ply, mandfa, symtable, symtableman, automatalib, automatalibman ou all (padrão: ply)",
+        choices=["all", "ply", "mandfa", "symtable", "symtableman", "automatalib", "automatalibman", "rust"],
+        help="Especifica qual lexer testar: ply, mandfa, symtable, symtableman, automatalib, automatalibman, rust ou all (padrão: ply)",
     )
 
 def pytest_collection_modifyitems(config, items):

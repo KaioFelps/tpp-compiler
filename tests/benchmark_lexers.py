@@ -15,6 +15,9 @@ import sys
 import time
 import argparse
 import statistics
+import subprocess
+import tempfile
+import os
 from pathlib import Path
 
 # Garante que a raiz do projeto esteja no sys.path
@@ -22,7 +25,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.tpplexer import get_lexer
 
-ALL_STRATEGIES = ["ply", "mandfa", "symtable", "symtableman", "automatalib", "automatalibman"]
+ALL_STRATEGIES = ["ply", "mandfa", "symtable", "symtableman", "automatalib", "automatalibman", "rust"]
 
 
 def generate_large_tpp_code(num_blocks: int = 1500) -> str:
@@ -69,34 +72,78 @@ def run_benchmark_for_strategy(strategy: str, code: str, rounds: int = 3, warmup
     Executa a análise léxica em memória para uma estratégia específica,
     coletando métricas estatísticas ao longo de múltiplas rodadas.
     """
-    # Rodada de aquecimento (warm-up) para carregar classes e JIT/caches
-    if warmup:
-        warmup_lex = get_lexer(strategy)
-        warmup_lex.input(code[:5000])
-        while warmup_lex.token():
-            pass
-
     durations = []
     token_count = 0
     token_types_sample = []
 
-    for r in range(rounds):
-        lexer = get_lexer(strategy)
-        lexer.input(code)
+    if strategy == "rust":
+        print(" [Compilando Rust (release)...]", end="", flush=True)
+        # compila o binário antes de começar a contar o tempo
+        subprocess.run(["cargo", "build", "--release"], check=True, capture_output=True)
         
-        count = 0
-        t0 = time.perf_counter()
-        while True:
-            tok = lexer.token()
-            if not tok:
-                break
-            count += 1
-            if r == 0 and len(token_types_sample) < 50:
-                token_types_sample.append(tok.type)
-        t1 = time.perf_counter()
-        
-        durations.append(t1 - t0)
-        token_count = count
+        bin_path = "./target/release/tpp-compiler"
+        if sys.platform == "win32":
+            bin_path += ".exe"
+            
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".tpp", delete=False, encoding="utf-8") as tmp_file:
+            tmp_file.write(code)
+            tmp_path = tmp_file.name
+
+        try:
+            for r in range(rounds):
+                t0 = time.perf_counter()
+
+                try:
+                    process = subprocess.run(
+                        [bin_path, tmp_path],
+                        capture_output=True,
+                        text=True,
+                        check=True
+                    )
+                except subprocess.CalledProcessError as e:
+                    print(f"\n\n[!] O binário Rust falhou (Código {e.returncode})")
+                    print(f"Comando: {' '.join(e.cmd)}")
+                    print(f"\n--- SAÍDA DE ERRO DO RUST (stderr) ---")
+                    print(e.stderr)
+                    print(f"--- FIM DO ERRO ---")
+                    sys.exit(1)
+
+                t1 = time.perf_counter()
+                
+                durations.append(t1 - t0)
+                linhas_saida = process.stdout.strip().split("\n")
+                token_count = len(linhas_saida) if process.stdout.strip() else 0
+                
+                if r == 0 and token_count > 0:
+                    token_types_sample = linhas_saida[:50]
+        finally:
+            os.remove(tmp_path)
+
+    else:
+        # Rodada de aquecimento (warm-up) para carregar classes e JIT/caches
+        if warmup:
+            warmup_lex = get_lexer(strategy)
+            warmup_lex.input(code[:5000])
+            while warmup_lex.token():
+                pass
+
+        for r in range(rounds):
+            lexer = get_lexer(strategy)
+            lexer.input(code)
+            
+            count = 0
+            t0 = time.perf_counter()
+            while True:
+                tok = lexer.token()
+                if not tok:
+                    break
+                count += 1
+                if r == 0 and len(token_types_sample) < 50:
+                    token_types_sample.append(tok.type)
+            t1 = time.perf_counter()
+            
+            durations.append(t1 - t0)
+            token_count = count
 
     mean_time = statistics.mean(durations)
     min_time = min(durations)
