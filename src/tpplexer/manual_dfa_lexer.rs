@@ -11,6 +11,12 @@ use std::{collections::HashMap, str::Chars, sync::LazyLock};
 
 const NUMBER_PATTERN: &str = r"[\+-]?[0-9]+";
 
+static IDENTIFIER_ALPHABET_SUBSET: [char; 66] = [
+    'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w',
+    'x', 'y', 'z', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T',
+    'U', 'V', 'W', 'X', 'Y', 'Z', 'á', 'Á', 'ã', 'Ã', 'à', 'À', 'é', 'É', 'í', 'Í', 'ó', 'Ó', 'õ', 'Õ',
+];
+
 static NUMBER_REGEX: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(formatcp!("^{NUMBER_PATTERN}")).expect("REGEX de número mal formado"));
 
@@ -100,6 +106,13 @@ pub struct ManualDFALexer<'this> {
     line_number: usize,
     /// Whether the errors should have `force_key` option enabled.
     force_error_key: bool,
+    /// Whether the subsets should consider just a subset of the actual acceptable
+    /// subsets. I.e., when `true`, identifiers must be a lexeme over the alphabet
+    /// {abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZáÁãÃàÀéÉíÍóÓõÕ}.
+    ///
+    /// This is useful for the tests that compare this lexer against the
+    /// Python implementations.
+    use_identifiers_reduced_subset: bool,
 }
 
 impl<'this> Lexer<'this> for ManualDFALexer<'this> {
@@ -122,7 +135,7 @@ impl<'this> Lexer<'this> for ManualDFALexer<'this> {
             self.cursor = self.next_cursor_value;
             debug!("[Lexer] Aplicando análise léxica em '{char}' ({}).", self.cursor);
 
-            if char.is_alphabetic() || char == '_' {
+            if self.is_valid_identifier_letter(char) || char == '_' {
                 return Some(Ok(self.lookahead_check_identifier_or_reserved_word(&mut iterator, char)));
             }
 
@@ -215,13 +228,14 @@ impl<'this> Lexer<'this> for ManualDFALexer<'this> {
 }
 
 impl<'this> ManualDFALexer<'this> {
-    pub fn new(data: &'this str, force_error_key: bool) -> Self {
+    pub fn new(data: &'this str, force_error_key: bool, use_identifiers_reduced_subset: bool) -> Self {
         Self {
             cursor: 0,
             next_cursor_value: 0,
             line_number: 1,
             data,
             force_error_key,
+            use_identifiers_reduced_subset,
         }
     }
 
@@ -233,6 +247,11 @@ impl<'this> ManualDFALexer<'this> {
             self.line_number,
             self.get_column(self.data, self.cursor),
         )
+    }
+
+    fn is_valid_identifier_letter(&self, char: char) -> bool {
+        self.use_identifiers_reduced_subset && IDENTIFIER_ALPHABET_SUBSET.contains(&char)
+            || !self.use_identifiers_reduced_subset && char.is_alphabetic()
     }
 
     /// Mounts a lexeme and transform it in the ID token (or the most appropriate kind).
@@ -248,7 +267,7 @@ impl<'this> ManualDFALexer<'this> {
 
         iterator.reset_peek();
         while let Some(char) = iterator.peek().cloned() {
-            if char.is_alphanumeric() || char == '_' {
+            if self.is_valid_identifier_letter(char) || char.is_numeric() || char == '_' {
                 byte_offset += char.len_utf8();
                 chars_to_consume += 1;
                 continue;

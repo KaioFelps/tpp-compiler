@@ -71,3 +71,19 @@ cursor relativo à classe do lexer, e que implementa um método `_peek` que visu
 caractere sem avançar o cursor. Também substitui uma tentativa realizada na implementação em
 Rust que partia do mesmo princípio, porém que implementava um método `peek(offset)` que
 buscava o caractere na posição $string_{\mathit{cursor} + \mathit{offset}}$.
+
+## Identificadores
+A implementação do lexer em Rust considera como caractere válido de um
+identificador — isto é, nome de variável, de função, etc — qualquer letra seguida de uma
+quantidade variável de letras, números ou _underscores_.
+
+Uma letra, por padrão, não é apenas o alfabeto simples, mas sim agrupamento de grafemas, o que
+inclui caracteres de outros idiomas, como kanji ou letras com diacríticos, como 'ç'. As
+implementações em Python, contudo, consideram apenas um subconjunto do que consideramos uma letra.
+
+Assim, a fim de reaproveitar os testes já escritos e fazer uma comparação simples com essas
+outras implementações, foi introduzida as _flags_ `-i` ou `--id-subset`, que forçam o _lexer_
+Rust a reconhecer somente as mesmas letras que as demais implementações.
+
+Essa opção é desabilitada por padrão, porém será sempre habilitada em todos os testes que comparam
+as saídas de erros e tokens entre as implementações a fim de estabelecer compatibilidade.

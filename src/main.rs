@@ -85,7 +85,7 @@ fn _lex_source_codes<'a>(
 
     for (file, data) in source_codes {
         info!("[lex_source_files::{file}] Iniciando a análise léxica do arquivo");
-        let mut lexer = ManualDFALexer::new(data.as_str(), args.use_errors_key);
+        let mut lexer = ManualDFALexer::new(data.as_str(), args.use_errors_key, args.use_identifiers_subset);
         debug!("[lex_source_files::{file}] Instanciado o lexer para iniciar a análise");
         let tokens = lexer.tokenize().map_err(|err| err.with_file(file.to_string()))?;
         files_tokens.insert(*file, tokens);
@@ -97,7 +97,7 @@ fn _lex_source_codes<'a>(
 
 fn lex_and_print_source_code(args: &Args, file: &str, source_code: &str) {
     info!("[lex_and_print_source_code::{file}] Iniciando a análise léxica do arquivo");
-    let mut lexer = ManualDFALexer::new(source_code, args.use_errors_key);
+    let mut lexer = ManualDFALexer::new(source_code, args.use_errors_key, args.use_identifiers_subset);
     debug!("[lex_and_print_source_code::{file}] Instanciado o lexer para iniciar a análise");
     for token in lexer.get_tokens() {
         match token {
