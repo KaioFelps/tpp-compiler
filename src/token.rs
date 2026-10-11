@@ -62,6 +62,10 @@ impl<'a> Token<'a> {
             col_number,
         }
     }
+
+    pub fn kind(&self) -> &TokenKind {
+        &self.kind
+    }
 }
 
 impl Display for TokenKind {
