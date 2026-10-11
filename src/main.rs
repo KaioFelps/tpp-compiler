@@ -37,7 +37,7 @@ fn init_logging() -> anyhow::Result<()> {
 
 fn validate_source_files(args: &Args) -> Result<(), TppCompilerError> {
     if args.source_files.is_empty() {
-        return Err(TppCompilerError::new_with_force_key(
+        return Err(TppCompilerError::new(
             ErrorSection::Global,
             "ERR-GLOB-USE",
             args.use_errors_key,
@@ -45,7 +45,7 @@ fn validate_source_files(args: &Args) -> Result<(), TppCompilerError> {
     }
 
     if !args.source_files.iter().all(|path| path.ends_with(".tpp")) {
-        return Err(TppCompilerError::new_with_force_key(
+        return Err(TppCompilerError::new(
             ErrorSection::Global,
             "ERR-GLOB-NOT-TPP",
             args.use_errors_key,
@@ -53,7 +53,7 @@ fn validate_source_files(args: &Args) -> Result<(), TppCompilerError> {
     }
 
     if args.source_files.iter().any(|path| !exists(path).is_ok_and(|v| v)) {
-        return Err(TppCompilerError::new_with_force_key(
+        return Err(TppCompilerError::new(
             ErrorSection::Global,
             "ERR-GLOB-FILE-NOT-EXISTS",
             args.use_errors_key,
