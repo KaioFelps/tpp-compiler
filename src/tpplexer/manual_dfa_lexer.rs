@@ -187,6 +187,13 @@ impl<'this> Lexer<'this> for ManualDFALexer<'this> {
                 return Some(Ok(token));
             }
 
+            if char == '{' {
+                if let Err(err) = self.lookahead_check_comment(&mut iterator) {
+                    return Some(Err(err));
+                }
+                continue;
+            }
+
             return Some(Err(TppCompilerError::new_lexer(
                 "ERR-LEX-INV-CHAR",
                 self.force_error_key,
@@ -286,5 +293,31 @@ impl<'this> ManualDFALexer<'this> {
         }
 
         None
+    }
+
+    fn lookahead_check_comment(&mut self, iterator: &mut MultiPeek<Chars<'_>>) -> Result<(), TppCompilerError> {
+        let mut offset = 1;
+
+        for char in iterator.by_ref() {
+            offset += 1;
+
+            if char == '\n' {
+                self.line_number += 1;
+            }
+
+            if char == '}' {
+                self.next_cursor_value = self.cursor + offset;
+                return Ok(());
+            }
+        }
+
+        Err(TppCompilerError::new_lexer(
+            "ERR-LEX-UNC-COMMENT",
+            self.force_error_key,
+            self.data[self.cursor..(self.cursor + offset)].to_string(),
+            self.line_number,
+            self.get_column(self.data, self.cursor),
+            None,
+        ))
     }
 }
