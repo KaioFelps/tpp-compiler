@@ -3,12 +3,22 @@ import subprocess
 import shlex
 import os, fnmatch
 
+@pytest.fixture(scope="session", autouse=True)
+def build_rust_binary(request):
+    """Compila o projeto Rust em release antes de rodar qualquer teste."""
+    # Só compila se o 'rust' estiver nas opções, para economizar tempo se for só testar python
+    lexer_opt = request.config.getoption("lexer")
+    if lexer_opt == "all" or lexer_opt == "rust":
+        print("\n[+] Compilando o binário Rust (release)...")
+        # subprocess.run com check=True bloqueia a execução até compilar e aborta se der erro
+        subprocess.run(["cargo", "build", "--release"], check=True)
+
 def pytest_generate_tests(metafunc):
     """Gera dinamicamente os casos de teste com base na opção --lexer."""
     lexer_opt = metafunc.config.getoption("lexer")
     
     if lexer_opt == "all":
-        lexers = ["ply", "mandfa", "symtable", "symtableman", "automatalib", "automatalibman"]
+        lexers = ["ply", "mandfa", "symtable", "symtableman", "automatalib", "automatalibman", "rust"]
     else:
         lexers = [lexer_opt]
     
@@ -34,14 +44,28 @@ def test_execute(lexer_type, key_option, input_file):
         path_file = 'tests/lex-tests/' + input_file
     else:
         path_file = ""
-    
-    # Executa o comando de compilação.
-    cmd = "python src/tpp_compiler.py --lexer {0} {1} {2}".format(lexer_type, key_option, path_file)
 
-    process = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    
-    stdout, stderr = process.communicate()
-    stdout, stderr
+    # Executa o comando de compilação.
+    if lexer_type == "rust":
+        cmd = "./target/release/tpp-compiler -i {0} {1}".format(key_option, path_file)
+    else:
+        cmd = "python src/tpp_compiler.py --lexer {0} {1} {2}".format(lexer_type, key_option, path_file)
+
+    process = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    stdout, _ = process.communicate()
+
+    out_str = stdout.decode("utf-8").strip()
+
+    if lexer_type == "rust":
+        lines = []
+        for line in out_str.splitlines():
+            line = line.strip()
+            if not line or line.endswith(".tpp") or line.endswith(".c") or "tests/lex-tests/" in line:
+                continue
+            lines.append(line)
+        final_output = "\n".join(lines)
+    else:
+        final_output = out_str
 
     path_file = 'tests/lex-tests/' + input_file
     output_file = open(path_file + ".lex.out", "r")
@@ -52,11 +76,11 @@ def test_execute(lexer_type, key_option, input_file):
     output_file.close()
 
     print("Generated output:")
-    print(stdout)
+    print(final_output)
     print("Expected output:")
     print(expected_output)
 
-    assert stdout.decode("utf-8").strip() == expected_output.strip()
+    assert final_output.strip() == expected_output.strip()
 
 
 if __name__ == "__main__":
