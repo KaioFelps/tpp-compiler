@@ -77,10 +77,15 @@ impl<'this> Lexer<'this> for ManualDFALexer<'this> {
             }
 
             if char.is_numeric() {
-                return self
+                if let Some(token) = self
                     .lookahead_check_scientific_notation(&mut iterator)
                     .or(self.lookahead_check_floating())
-                    .or(self.lookahead_check_number());
+                    .or(self.lookahead_check_number())
+                {
+                    return Some(token);
+                }
+
+                panic!("retornar erro");
             }
 
             self.next_cursor_value += 1;
@@ -193,7 +198,7 @@ impl<'this> ManualDFALexer<'this> {
             self.next_cursor_value = self.cursor + lexeme_len;
             let _ = iterator.nth(lexeme_len);
 
-            let token = self.prepare_token(TokenKind::NumNotacaoCientific, lexeme_str);
+            let token = self.prepare_token(TokenKind::NumNotacaoCientifica, lexeme_str);
             return Some(token);
         }
 

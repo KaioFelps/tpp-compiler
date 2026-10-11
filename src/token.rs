@@ -1,4 +1,4 @@
-use std::fmt::{Display, write};
+use std::fmt::Display;
 
 #[derive(Debug, Clone)]
 pub enum TokenKind {
@@ -36,7 +36,7 @@ pub enum TokenKind {
     Flutuante,
     NumInteiro,
     NumPontoFlutuante,
-    NumNotacaoCientific,
+    NumNotacaoCientifica,
 }
 
 #[derive(Debug)]
@@ -64,11 +64,55 @@ impl<'a> Token<'a> {
     }
 }
 
+impl Display for TokenKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let stringified = match self {
+            Self::Ident => "ID",
+            Self::Mais => "MAIS",
+            Self::Menos => "MENOS",
+            Self::Vezes => "VEZES",
+            Self::Divide => "DIVIDE",
+            Self::DoisPontos => "DOIS_PONTOS",
+            Self::Virgula => "VIRGULA",
+            Self::Menor => "MENOR",
+            Self::Maior => "MAIOR",
+            Self::Igual => "IGUAL",
+            Self::Diferente => "DIFERENTE",
+            Self::MenorIgual => "MENOR_IGUAL",
+            Self::MaiorIgual => "MAIOR_IGUAL",
+            Self::E => "E",
+            Self::Ou => "OU",
+            Self::Nao => "NAO",
+            Self::AbreParentese => "ABRE_PARENTESE",
+            Self::FechaParentese => "FECHA_PARENTESE",
+            Self::AbreColchete => "ABRE_COLCHETE",
+            Self::FechaColchete => "FECHA_COLCHETE",
+            Self::Se => "SE",
+            Self::Entao => "ENTAO",
+            Self::Senao => "SENAO",
+            Self::Fim => "FIM",
+            Self::Repita => "REPITA",
+            Self::Ate => "ATE",
+            Self::Atribuicao => "ATRIBUICAO",
+            Self::Leia => "LEIA",
+            Self::Escreva => "ESCREVA",
+            Self::Retorna => "RETORNA",
+            Self::Inteiro => "INTEIRO",
+            Self::Flutuante => "FLUTUANTE",
+            Self::NumInteiro => "NUM_INTEIRO",
+            Self::NumPontoFlutuante => "NUM_PONTO_FLUTUANTE",
+            Self::NumNotacaoCientifica => "NUM_NOTACAO_CIENTIFICA",
+        };
+
+        write!(f, "{stringified}")
+    }
+}
+
 impl Display for Token<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            r#"{:?}("{}") (linha {}, coluna {})"#,
+            r#"{}("{}") (linha {}, coluna {})"#,
             self.kind, self.value, self.line_number, self.col_number
         )
     }
