@@ -122,11 +122,7 @@ impl<'this> Lexer<'this> for ManualDFALexer<'this> {
             }
 
             if char.is_numeric() || char == '+' || char == '-' {
-                if let Some(token) = self
-                    .lookahead_check_scientific_notation(&mut iterator)
-                    .or_else(|| self.lookahead_check_floating(&mut iterator))
-                    .or_else(|| self.lookahead_check_number(&mut iterator))
-                {
+                if let Some(token) = self.lookahead_check_number(&mut iterator) {
                     return Some(Ok(token));
                 }
 
@@ -256,66 +252,37 @@ impl<'this> ManualDFALexer<'this> {
         self.prepare_token(token_kind, lexeme)
     }
 
-    fn lookahead_check_scientific_notation(&mut self, iterator: &mut MultiPeek<Chars<'_>>) -> Option<Token<'this>> {
-        if let Some(lexeme) = SCIENTIFIC_NOTATION.find_at(self.data, self.cursor) {
-            let lexeme_str = lexeme.as_str();
-            // creates a temporary iterator, which might seem heavy, but it has just few characters of length so
-            // it weights nothing at all
-            let lexeme_len = lexeme_str.chars().count();
-
-            self.next_cursor_value = self.cursor + lexeme_len;
-            let _ = iterator.nth(lexeme_len);
-
-            debug!(
-                r#"[Lexer] Formou número de notação científica "{lexeme_str}" no intervalo [{}, {}[ do código fonte."#,
-                self.cursor,
-                self.cursor + lexeme_len
-            );
-
-            let token = self.prepare_token(TokenKind::NumNotacaoCientifica, lexeme_str);
-            return Some(token);
-        }
-
-        None
-    }
-
-    fn lookahead_check_floating(&mut self, iterator: &mut MultiPeek<Chars<'_>>) -> Option<Token<'this>> {
-        if let Some(lexeme) = FLOATING_POINT.find_at(self.data, self.cursor) {
-            let lexeme_str = lexeme.as_str();
-            let lexeme_len = lexeme_str.chars().count();
-
-            self.next_cursor_value = self.cursor + lexeme_len;
-            let _ = iterator.nth(lexeme_len);
-
-            debug!(
-                r#"[Lexer] Formou número de ponto flutuante "{lexeme_str}" no intervalo [{}, {}[ do código fonte."#,
-                self.cursor,
-                self.cursor + lexeme_len
-            );
-
-            let token = self.prepare_token(TokenKind::NumPontoFlutuante, lexeme_str);
-            return Some(token);
-        }
-
-        None
-    }
-
     fn lookahead_check_number(&mut self, iterator: &mut MultiPeek<Chars<'_>>) -> Option<Token<'this>> {
-        if let Some(lexeme) = NUMBER_REGEX.find_at(self.data, self.cursor) {
-            let lexeme_str = lexeme.as_str();
-            let lexeme_len = lexeme_str.chars().count();
+        let regexes = [&SCIENTIFIC_NOTATION, &FLOATING_POINT, &NUMBER_REGEX];
+        let log_kind = ["número por notação científica", "decimal", "número inteiro"];
+        let kind = [
+            TokenKind::NumNotacaoCientifica,
+            TokenKind::NumPontoFlutuante,
+            TokenKind::NumInteiro,
+        ];
 
-            self.next_cursor_value = self.cursor + lexeme_len;
-            let _ = iterator.nth(lexeme_len);
+        for i in 0..3 {
+            let regex = regexes[i];
 
-            debug!(
-                r#"[Lexer] Formou número inteiro "{lexeme_str}" no intervalo [{}, {}[ do código fonte."#,
-                self.cursor,
-                self.cursor + lexeme_len
-            );
+            if let Some(lexeme) = regex.find_at(self.data, self.cursor) {
+                let lexeme_str = lexeme.as_str();
+                // creates a temporary iterator, which might seem heavy, but it has just few characters of length so
+                // it weights nothing at all
+                let lexeme_len = lexeme_str.chars().count();
 
-            let token = self.prepare_token(TokenKind::NumInteiro, lexeme_str);
-            return Some(token);
+                self.next_cursor_value = self.cursor + lexeme_len;
+                let _ = iterator.nth(lexeme_len);
+
+                debug!(
+                    r#"[Lexer] Formou {} "{lexeme_str}" no intervalo [{}, {}[ do código fonte."#,
+                    log_kind[i],
+                    self.cursor,
+                    self.cursor + lexeme_len
+                );
+
+                let token = self.prepare_token(kind[i].clone(), lexeme_str);
+                return Some(token);
+            }
         }
 
         None
