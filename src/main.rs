@@ -14,6 +14,7 @@ use log::{debug, info};
 use std::{
     collections::HashMap,
     fs::{OpenOptions, exists, read_to_string},
+    process::exit,
 };
 use tracing_subscriber::EnvFilter;
 
@@ -76,7 +77,7 @@ fn acquire_source_codes(args: &Args) -> anyhow::Result<HashMap<&str, String>> {
     Ok(source_codes)
 }
 
-fn lex_source_codes<'a>(
+fn _lex_source_codes<'a>(
     args: &Args,
     source_codes: &'a HashMap<&'a str, String>,
 ) -> anyhow::Result<HashMap<&'a str, Vec<Token<'a>>>> {
@@ -94,7 +95,23 @@ fn lex_source_codes<'a>(
     Ok(files_tokens)
 }
 
-fn main() -> anyhow::Result<()> {
+fn lex_and_print_source_code(args: &Args, file: &str, source_code: &str) {
+    info!("[lex_and_print_source_code::{file}] Iniciando a análise léxica do arquivo");
+    let mut lexer = ManualDFALexer::new(source_code, args.use_errors_key);
+    debug!("[lex_and_print_source_code::{file}] Instanciado o lexer para iniciar a análise");
+    for token in lexer.get_tokens() {
+        match token {
+            Ok(token) => println!("{}", token.kind()),
+            Err(mut err) => {
+                err.set_file(file.to_string());
+                eprintln!("{err}");
+            }
+        }
+    }
+    debug!("[lex_and_print_source_code::{file}] Finalizada a tokenização do arquivo");
+}
+
+fn run() -> anyhow::Result<()> {
     init_logging()?;
     let args = Args::parse();
     debug!("Leitura de argumentos finalizada.");
@@ -102,18 +119,29 @@ fn main() -> anyhow::Result<()> {
     validate_source_files(&args)?;
 
     let source_codes = acquire_source_codes(&args)?;
-    let source_files_tokens = lex_source_codes(&args, &source_codes)?;
+    // let source_files_tokens = lex_source_codes(&args, &source_codes)?;
 
-    if source_files_tokens.len() > 1 {
-        for (file, tokens) in source_files_tokens {
-            println!("{file}");
-            tokens.iter().for_each(|token| println!("\t{token}"));
-        }
-    } else if source_files_tokens.len() == 1 {
-        source_files_tokens.values().collect::<Vec<_>>()[0]
-            .iter()
-            .for_each(|token| println!("{token}"));
+    for (file, source_code) in &source_codes {
+        lex_and_print_source_code(&args, file, source_code);
     }
 
+    // if source_files_tokens.len() > 1 {
+    //     for (file, tokens) in source_files_tokens {
+    //         println!("{file}");
+    //         tokens.iter().for_each(|token| println!("\t{token}"));
+    //     }
+    // } else if source_files_tokens.len() == 1 {
+    //     source_files_tokens.values().collect::<Vec<_>>()[0]
+    //         .iter()
+    //         .for_each(|token| println!("{}", token.kind()));
+    // }
+
     Ok(())
+}
+
+fn main() {
+    if let Err(err) = run() {
+        eprintln!("{err}");
+        exit(1);
+    }
 }
