@@ -53,7 +53,7 @@ static ERROR_MESSAGES: LazyLock<HashMap<ErrorMessagesSection, HashMap<&'static s
     LazyLock::new(|| {
         ERROR_MESSAGES_DESCRIPTORS
             .into_iter()
-            .map(|config| Ini::new().read(config.to_string()))
+            .map(|config| Ini::new_cs().read(config.to_string()))
             .filter_map(|res| match res {
                 Ok(res) => Some(res),
                 Err(err) => {
@@ -104,14 +104,14 @@ impl TppCompilerError {
     pub fn new<T: ToString>(kind: ErrorKind, key: T, force_key: bool) -> Self {
         Self {
             kind,
-            key: key.to_string().to_lowercase(),
+            key: key.to_string(),
             force_key,
         }
     }
 
     pub fn new_global<T: ToString>(key: T, force_key: bool, file: Option<String>) -> Self {
         Self {
-            key: key.to_string().to_lowercase(),
+            key: key.to_string(),
             force_key,
             kind: ErrorKind::Global { file },
         }
@@ -133,7 +133,7 @@ impl TppCompilerError {
                 column,
                 lexeme,
             },
-            key: key.to_string().to_lowercase(),
+            key: key.to_string(),
         }
     }
 
