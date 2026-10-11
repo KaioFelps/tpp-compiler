@@ -1,6 +1,6 @@
 name: GitHub Classroom Workflow
 
-on: [push]
+on: []
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
