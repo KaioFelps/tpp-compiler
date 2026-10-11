@@ -171,7 +171,7 @@ impl<'this> Lexer<'this> for ManualDFALexer<'this> {
                 }
 
                 log_lexeme_char_found(char, self.cursor, token_kind.clone());
-                let token = self.prepare_token(TokenKind::Igual, &self.data[self.cursor..self.next_cursor_value]);
+                let token = self.prepare_token(token_kind, &self.data[self.cursor..self.next_cursor_value]);
                 return Some(Ok(token));
             }
 
