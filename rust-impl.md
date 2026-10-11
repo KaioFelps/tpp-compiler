@@ -2,7 +2,8 @@
 
 Esse documento contém detalhes da implementação do compilador do TPP em Rust.
 A abordagem adotada é a manual: REGEXes serão utilizados para identificar lexemas,
-e uma série de `match`es resolverá o token.
+e uma série de `match`es resolverá o token. Além do mais, uma tabela de símbolos será
+consultada para decidir quando um identificador é, na verdade, uma palavra reservada.
 
 As estruturas seguirão fortemente os exemplos, e a mesma interface adotada pelas
 implementações em Python será utilizada na estrutura do Lexer em Rust.
@@ -33,3 +34,34 @@ durante a inicialização do compilador. Essa decisão não tem nenhum impacto n
 do compilador na prática, visto que diante do primeiro erro, o programa se encerra.
 
 A biblioteca _anyhow_ foi utilizada para facilitar a propagação de erros.
+
+## Caracteres ou Bytes
+Em C/C++, um caractere é sinônimo de byte. De fato, um caractere ASCII ocupa exatamente
+1 byte, e para muitos textos, isso é o suficiente para indexar corretamente cada caractere.
+
+Como a linguagem TPP tem, em seu código fonte, caracteres unicode por padrão — visto que
+as próprias palavras chaves contêm acentos —, indexar os bytes de uma string Rust não é
+correto.
+
+Observe que, se símbolos ainda mais complexos fossem incluídos na linguagem, como "y̆", nem
+mesmo os `char`s do Rust — que são, na verdade, 4 bytes e representam um valor unicode —
+seriam suficiente. Como não é o caso, os `char`s ainda servem.
+
+Contudo, embora a biblioteca padrão do Rust entregue o método `String::chars` para obter um
+iterador sobre cada caractere de uma string, esse iterador permite performar um _lookahead_
+de, no máximo, 1 caractere. Isso não é o bastante para agrupar, manualmente, lexemas maiores.
+
+Diante disso, será utilizada a _crate_ _itertools_, uma biblioteca popular e padrão da
+comunidade, para iterar sobre os caracteres (`char`) da string do código-fonte de forma mais
+robusta, isto é, sem a necessidade de criar-se iteradores e percorrer a string $n$ vezes
+todas as vezes que se quiser acessar o `char` na posição $n$, ou de iterar apenas uma vez
+sobre os caracteres (usando o iterador `Chars` do Rust) sob a limitação de um _lookahead_
+mínimo.
+
+A funcionalidade `multipeek` do _itertools_ será utilizada para performar a iteração sobre
+a string com um _lookahead_ dinâmico, isto é, limitado apenas pelo tamanho da própria string.
+Isso se difere da implementação manual em Python provida como exemplo, que itera mantendo um
+cursor relativo à classe do lexer, e que implementa um método `_peek` que visualiza outro
+caractere sem avançar o cursor. Também substitui uma tentativa realizada na implementação em
+Rust que partia do mesmo princípio, porém que implementava um método `peek(offset)` que
+buscava o caractere na posição $string_{\mathit{cursor} + \mathit{offset}}$.
