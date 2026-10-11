@@ -17,12 +17,13 @@ pub trait Lexer<'this> {
         Box::new(std::iter::from_fn(move || self.next_token()))
     }
 
-    /// Calculates the line (1-indexed) of the lexeme from its position in the source text.
-    fn get_column(&self, data: &str, lexpos: usize) -> usize
+    /// Calculates the column (1-indexed) of the lexeme from its position in the source text line.
+    /// Expects `lexeme_begin_position` to be 0-indexed.
+    fn get_column(&self, data: &str, lexeme_begin_position: usize) -> usize
     where
         Self: Sized,
     {
-        let begin_line = data[0..lexpos].rfind('\n').map(|v| v + 1).unwrap_or(0);
-        (lexpos - begin_line) + 1
+        let begin_line: usize = data[0..lexeme_begin_position].rfind('\n').map(|v| v + 1).unwrap_or(0);
+        (lexeme_begin_position - begin_line) + 1
     }
 }

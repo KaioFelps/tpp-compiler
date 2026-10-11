@@ -1,14 +1,20 @@
 mod cli;
 mod errors;
-
-use std::fs::{OpenOptions, exists};
+mod token;
+mod tpplexer;
 
 use crate::{
     cli::Args,
     errors::{ErrorSection, TppCompilerError},
+    token::Token,
+    tpplexer::{Lexer, ManualDFALexer},
 };
 use clap::Parser;
 use log::{debug, info};
+use std::{
+    collections::HashMap,
+    fs::{OpenOptions, exists, read_to_string},
+};
 
 fn init_logging() -> anyhow::Result<()> {
     let file = OpenOptions::new()
@@ -57,10 +63,35 @@ fn validate_source_files(args: &Args) -> Result<(), TppCompilerError> {
     Ok(())
 }
 
-fn lex_source_files(args: &Args) {
+fn acquire_source_codes(args: &Args) -> anyhow::Result<HashMap<&str, String>> {
+    let mut source_codes = HashMap::<&str, String>::new();
+
     for file in &args.source_files {
-        info!("Iniciando a análise léxica do arquivo \"{file}\".");
+        info!("[acquire_source_codes::{file}] Lendo o conteúdo do arquivo de código-fonte");
+        let data = read_to_string(file)?;
+        debug!("[acquire_source_codes::{file}] Lido o conteúdo do arquivo");
+        source_codes.insert(file.as_str(), data);
+        debug!("[acquire_source_codes::{file}] Finalizada tokenização do arquivo");
     }
+
+    Ok(source_codes)
+}
+
+fn lex_source_codes<'a>(
+    source_codes: &'a HashMap<&'a str, String>,
+) -> anyhow::Result<HashMap<&'a str, Vec<Token<'a>>>> {
+    let mut files_tokens = HashMap::<&'a str, Vec<Token<'a>>>::new();
+
+    for (file, data) in source_codes {
+        info!("[lex_source_files::{file}] Iniciando a análise léxica do arquivo");
+        let mut lexer = ManualDFALexer::new(data.as_str());
+        debug!("[lex_source_files::{file}] Instanciado o lexer para iniciar a análise");
+        let tokens = lexer.tokenize();
+        files_tokens.insert(*file, tokens);
+        debug!("[lex_source_files::{file}] Finalizada a tokenização do arquivo");
+    }
+
+    Ok(files_tokens)
 }
 
 fn main() -> anyhow::Result<()> {
@@ -70,12 +101,18 @@ fn main() -> anyhow::Result<()> {
 
     validate_source_files(&args)?;
 
-    lex_source_files(&args);
+    let source_codes = acquire_source_codes(&args)?;
+    let source_files_tokens = lex_source_codes(&source_codes)?;
 
     println!(
-        "Hello, world! usou key: {}; arquivos fontes: {:#?}",
+        "Hello, world! usou key: {}; arquivos fontes: {:#?};",
         args.use_errors_key, args.source_files
     );
+
+    for (file, tokens) in source_files_tokens {
+        println!("{file}");
+        tokens.iter().for_each(|token| println!("\t{token}"));
+    }
 
     Ok(())
 }
