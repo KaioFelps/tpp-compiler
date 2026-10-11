@@ -3,16 +3,6 @@ import subprocess
 import shlex
 import os, fnmatch
 
-@pytest.fixture(scope="session", autouse=True)
-def build_rust_binary(request):
-    """Compila o projeto Rust em release antes de rodar qualquer teste."""
-    # Só compila se o 'rust' estiver nas opções, para economizar tempo se for só testar python
-    lexer_opt = request.config.getoption("lexer")
-    if lexer_opt == "all" or lexer_opt == "rust":
-        print("\n[+] Compilando o binário Rust (release)...")
-        # subprocess.run com check=True bloqueia a execução até compilar e aborta se der erro
-        subprocess.run(["cargo", "build", "--release"], check=True)
-
 def pytest_generate_tests(metafunc):
     """Gera dinamicamente os casos de teste com base na opção --lexer."""
     lexer_opt = metafunc.config.getoption("lexer")
