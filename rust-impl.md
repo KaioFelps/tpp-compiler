@@ -38,20 +38,20 @@ A biblioteca _anyhow_ foi utilizada para facilitar a propagação de erros.
 O arquivo `LexerErrorMessages.properties` foi copiado para `__LexerErrorMessages.properties`,
 e todas as referências a ele nas implementações em Python agora apontam para esta cópia.
 A versão original contém mensagens de erros mais ricas, isto é, com mais informações sobre
-o contexto do problema, incluindo o caminhod o arquivo, o provável lexema, a linha e a coluna
+o contexto do problema, incluindo o caminho do arquivo, o provável lexema, a linha e a coluna
 em que estão localizados no arquivo do código-fonte.
 
 ## Caracteres ou Bytes
 Em C/C++, um caractere é sinônimo de byte. De fato, um caractere ASCII ocupa exatamente
 1 byte, e para muitos textos, isso é o suficiente para indexar corretamente cada caractere.
 
-Como a linguagem TPP tem, em seu código fonte, caracteres unicode por padrão — visto que
-as próprias palavras chaves contêm acentos —, indexar os bytes de uma string Rust não é
+Como a linguagem TPP tem, em seu código-fonte, caracteres unicode por padrão — visto que
+as próprias palavras-chave contêm acentos —, indexar os bytes de uma string Rust não é
 correto.
 
 Observe que, se símbolos ainda mais complexos fossem incluídos na linguagem, como "y̆", nem
 mesmo os `char`s do Rust — que são, na verdade, 4 bytes e representam um valor unicode —
-seriam suficiente. Como não é o caso, os `char`s ainda servem.
+seriam suficientes. Como não é o caso, os `char`s ainda servem.
 
 Contudo, embora a biblioteca padrão do Rust entregue o método `String::chars` para obter um
 iterador sobre cada caractere de uma string, esse iterador permite performar um _lookahead_
@@ -59,7 +59,7 @@ de, no máximo, 1 caractere. Isso não é o bastante para agrupar, manualmente, 
 
 Diante disso, será utilizada a _crate_ _itertools_, uma biblioteca popular e padrão da
 comunidade, para iterar sobre os caracteres (`char`) da string do código-fonte de forma mais
-robusta, isto é, sem a necessidade de criar-se iteradores e percorrer a string $n$ vezes
+robusta, isto é, sem a necessidade de se criar iteradores e percorrer a string $n$ vezes
 todas as vezes que se quiser acessar o `char` na posição $n$, ou de iterar apenas uma vez
 sobre os caracteres (usando o iterador `Chars` do Rust) sob a limitação de um _lookahead_
 mínimo.
@@ -74,15 +74,15 @@ buscava o caractere na posição $string_{\mathit{cursor} + \mathit{offset}}$.
 
 ## Identificadores
 A implementação do lexer em Rust considera como caractere válido de um
-identificador — isto é, nome de variável, de função, etc — qualquer letra seguida de uma
+identificador — isto é, nome de variável, de função, etc. — qualquer letra seguida de uma
 quantidade variável de letras, números ou _underscores_.
 
-Uma letra, por padrão, não é apenas o alfabeto simples, mas sim agrupamento de grafemas, o que
+Uma letra, por padrão, não é apenas o alfabeto simples, mas sim um agrupamento de grafemas, o que
 inclui caracteres de outros idiomas, como kanji ou letras com diacríticos, como 'ç'. As
 implementações em Python, contudo, consideram apenas um subconjunto do que consideramos uma letra.
 
 Assim, a fim de reaproveitar os testes já escritos e fazer uma comparação simples com essas
-outras implementações, foi introduzida as _flags_ `-i` ou `--id-subset`, que forçam o _lexer_
+outras implementações, foram introduzidas as _flags_ `-i` ou `--id-subset`, que forçam o _lexer_
 Rust a reconhecer somente as mesmas letras que as demais implementações.
 
 Essa opção é desabilitada por padrão, porém será sempre habilitada em todos os testes que comparam
@@ -109,17 +109,17 @@ As alterações realizadas foram, em suma, a adição da opção de _lexer_ `rus
 compiliar o programa em modo _release_ e executar o programa binário ao invés do script Python
 `tpp_compiler.py`.
 
-Os comandos que executam o programa em Rust contém a _flag_ `-i`, como discutido na seção [Identificadores].
+Os comandos que executam o programa em Rust contêm a _flag_ `-i`, como discutido na seção [Identificadores].
 Em alguns casos, onde se utiliza a função `get_lexer` para executar o analisador diretamente, houve de ser
 criado um _mock_ (`RustMockLexer`) para interfacear com o programa em Rust, visto que não é possível realizar
 chamadas para o analisador léxico diretamente do script Python sem uso de FFI — o que seria um trabalho em
-demásia e que não agregaria nada de relevante para o trabalho.
+demasia e que não agregaria nada de relevante para o trabalho.
 
 [Identificadores]: #identificadores
 
 ## Benchmarks
 Após configurar o arquivo de _benchmarks_, o Rust apresentava execuções com resultados com altas
-variações: hora inferior às implementações em Python, hora superior:
+variações: ora inferior às implementações em Python, ora superior:
 
 ### Execução 1 (sem warm-up do _lexer_ Rust)
 | Estratégia | Tokens | Tempo Médio (s) | Tempo Mín (s) | Vazão (tokens/s) | Relativo (vs PLY) |
