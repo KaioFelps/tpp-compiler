@@ -15,6 +15,9 @@ const NUMBER: &str = "[\\+-]?[0-9]+";
 
 static NUMBER_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(NUMBER).expect("REGEX de número mal formado"));
 static SCIENTIFIC_NOTATION: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(formatcp!("[-\\+]?[1-9]\\.[0-9]+[Ee](?:{NUMBER})?")).expect("REGEX de notação científica mal formado")
+});
+static FLOATING_POINT: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(formatcp!("{NUMBER}\\.[0-9]+([Ee]{NUMBER})?")).expect("REGEX de número flutuante mal formado")
 });
 
