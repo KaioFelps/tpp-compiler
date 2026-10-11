@@ -3,7 +3,7 @@ use log::warn;
 use std::{collections::HashMap, fmt::Display, sync::LazyLock};
 
 #[derive(PartialEq, Eq, Hash, Debug)]
-pub enum ErrorSection {
+pub enum ErrorMessagesSection {
     Global,
     Lexer,
     Parser,
@@ -11,7 +11,7 @@ pub enum ErrorSection {
     // CodeGenError,
 }
 
-impl<T: AsRef<str>> From<T> for ErrorSection {
+impl<T: AsRef<str>> From<T> for ErrorMessagesSection {
     fn from(value: T) -> Self {
         let value = value.as_ref();
         match value {
@@ -25,12 +25,12 @@ impl<T: AsRef<str>> From<T> for ErrorSection {
     }
 }
 
-impl Display for ErrorSection {
+impl Display for ErrorMessagesSection {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let string = match self {
-            ErrorSection::Global => "GlobalError".to_string(),
-            ErrorSection::Lexer => "LexerError".to_string(),
-            ErrorSection::Parser => "ParserError".to_string(),
+            ErrorMessagesSection::Global => "GlobalError".to_string(),
+            ErrorMessagesSection::Lexer => "LexerError".to_string(),
+            ErrorMessagesSection::Parser => "ParserError".to_string(),
             // ErrorSection::SemanticError => "SemanticError".to_string(),
             // ErrorSection::CodeGenError => "CodeGenError".to_string(),
         };
@@ -49,49 +49,115 @@ const ERROR_MESSAGES_DESCRIPTORS: [&str; 3] = [
 ];
 
 /// The sections of errors and their key-value pairs in-memory.
-static ERROR_MESSAGES: LazyLock<HashMap<ErrorSection, HashMap<&'static str, &'static str>>> = LazyLock::new(|| {
-    ERROR_MESSAGES_DESCRIPTORS
-        .into_iter()
-        .map(|config| Ini::new().read(config.to_string()))
-        .filter_map(|res| match res {
-            Ok(res) => Some(res),
-            Err(err) => {
-                warn!("Não foi possível interpretar o arquivo de configuração de erros: {err}.",);
-                None
-            }
-        })
-        .flat_map(|sections| {
-            sections
-                .into_iter()
-                .map(|(section, errors_map)| {
-                    let errors = errors_map
-                        .into_iter()
-                        .map(|(key, message)| (key.leak() as &str, message.map(|msg| msg.leak() as &str)))
-                        .filter_map(|(key, message)| message.map(|message| (key, message)))
-                        .collect::<HashMap<_, _>>();
-                    (ErrorSection::from(section), errors)
-                })
-                // map[section]=errors map
-                .collect::<HashMap<_, _>>()
-        })
-        // flatmap kept this as a map[section]=errors map
-        .collect::<HashMap<_, _>>()
-});
+static ERROR_MESSAGES: LazyLock<HashMap<ErrorMessagesSection, HashMap<&'static str, &'static str>>> =
+    LazyLock::new(|| {
+        ERROR_MESSAGES_DESCRIPTORS
+            .into_iter()
+            .map(|config| Ini::new().read(config.to_string()))
+            .filter_map(|res| match res {
+                Ok(res) => Some(res),
+                Err(err) => {
+                    warn!("Não foi possível interpretar o arquivo de configuração de erros: {err}.",);
+                    None
+                }
+            })
+            .flat_map(|sections| {
+                sections
+                    .into_iter()
+                    .map(|(section, errors_map)| {
+                        let errors = errors_map
+                            .into_iter()
+                            .map(|(key, message)| (key.leak() as &str, message.map(|msg| msg.leak() as &str)))
+                            .filter_map(|(key, message)| message.map(|message| (key, message)))
+                            .collect::<HashMap<_, _>>();
+                        (ErrorMessagesSection::from(section), errors)
+                    })
+                    // map[section]=errors map
+                    .collect::<HashMap<_, _>>()
+            })
+            // flatmap kept this as a map[section]=errors map
+            .collect::<HashMap<_, _>>()
+    });
+
+#[derive(Debug)]
+pub enum ErrorKind {
+    Global {
+        file: Option<String>,
+    },
+    Lexer {
+        file: Option<String>,
+        line: usize,
+        column: usize,
+        lexeme: String,
+    },
+    Parser,
+}
 
 #[derive(Debug)]
 pub struct TppCompilerError {
-    section: ErrorSection,
+    kind: ErrorKind,
     key: String,
     force_key: bool,
 }
 
 impl TppCompilerError {
-    pub fn new<T: ToString>(section: ErrorSection, key: T, force_key: bool) -> Self {
+    pub fn new<T: ToString>(kind: ErrorKind, key: T, force_key: bool) -> Self {
         Self {
+            kind,
             key: key.to_string().to_lowercase(),
-            section,
             force_key,
         }
+    }
+
+    pub fn new_global<T: ToString>(key: T, force_key: bool, file: Option<String>) -> Self {
+        Self {
+            key: key.to_string().to_lowercase(),
+            force_key,
+            kind: ErrorKind::Global { file },
+        }
+    }
+
+    pub fn new_lexer<T: ToString>(
+        key: T,
+        force_key: bool,
+        lexeme: String,
+        line: usize,
+        column: usize,
+        file: Option<String>,
+    ) -> Self {
+        Self {
+            force_key,
+            kind: ErrorKind::Lexer {
+                file,
+                line,
+                column,
+                lexeme,
+            },
+            key: key.to_string().to_lowercase(),
+        }
+    }
+
+    pub fn with_file(mut self, file: String) -> Self {
+        self.set_file(file);
+        self
+    }
+
+    pub fn set_file(&mut self, file: String) {
+        self.kind = match &self.kind {
+            ErrorKind::Global { file: _ } => ErrorKind::Global { file: Some(file) },
+            ErrorKind::Lexer {
+                file: _,
+                line,
+                column,
+                lexeme,
+            } => ErrorKind::Lexer {
+                file: Some(file),
+                line: *line,
+                column: *column,
+                lexeme: lexeme.clone(),
+            },
+            ErrorKind::Parser => ErrorKind::Parser,
+        };
     }
 }
 
@@ -101,14 +167,44 @@ impl Display for TppCompilerError {
             return write!(f, "{}", self.key);
         }
 
-        let content = if let Some(message) = ERROR_MESSAGES
-            .get(&self.section)
+        let section = match &self.kind {
+            ErrorKind::Global { file: _ } => ErrorMessagesSection::Global,
+            ErrorKind::Lexer {
+                file: _,
+                line: _,
+                column: _,
+                lexeme: _,
+            } => ErrorMessagesSection::Lexer,
+            ErrorKind::Parser => ErrorMessagesSection::Parser,
+        };
+
+        let mut content = if let Some(message) = ERROR_MESSAGES
+            .get(&section)
             .and_then(|section| section.get(self.key.as_str()))
         {
-            *message
+            message.to_string()
         } else {
-            &self.key
+            self.key.clone()
         };
+
+        match &self.kind {
+            ErrorKind::Global { file } => {
+                content = content.replace("{file}", file.as_deref().unwrap_or_default());
+            }
+            ErrorKind::Lexer {
+                file,
+                line,
+                column,
+                lexeme,
+            } => {
+                content = content
+                    .replace("{file}", file.as_deref().unwrap_or_default())
+                    .replace("{line}", &line.to_string())
+                    .replace("{column}", &column.to_string())
+                    .replace("{lexeme}", lexeme);
+            }
+            ErrorKind::Parser => {}
+        }
 
         write!(f, "{content}")
     }

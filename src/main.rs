@@ -5,7 +5,7 @@ mod tpplexer;
 
 use crate::{
     cli::Args,
-    errors::{ErrorSection, TppCompilerError},
+    errors::TppCompilerError,
     token::Token,
     tpplexer::{Lexer, ManualDFALexer},
 };
@@ -37,26 +37,22 @@ fn init_logging() -> anyhow::Result<()> {
 
 fn validate_source_files(args: &Args) -> Result<(), TppCompilerError> {
     if args.source_files.is_empty() {
-        return Err(TppCompilerError::new(
-            ErrorSection::Global,
-            "ERR-GLOB-USE",
-            args.use_errors_key,
-        ));
+        return Err(TppCompilerError::new_global("ERR-GLOB-USE", args.use_errors_key, None));
     }
 
     if !args.source_files.iter().all(|path| path.ends_with(".tpp")) {
-        return Err(TppCompilerError::new(
-            ErrorSection::Global,
+        return Err(TppCompilerError::new_global(
             "ERR-GLOB-NOT-TPP",
             args.use_errors_key,
+            None,
         ));
     }
 
     if args.source_files.iter().any(|path| !exists(path).is_ok_and(|v| v)) {
-        return Err(TppCompilerError::new(
-            ErrorSection::Global,
+        return Err(TppCompilerError::new_global(
             "ERR-GLOB-FILE-NOT-EXISTS",
             args.use_errors_key,
+            None,
         ));
     }
 
@@ -78,15 +74,16 @@ fn acquire_source_codes(args: &Args) -> anyhow::Result<HashMap<&str, String>> {
 }
 
 fn lex_source_codes<'a>(
+    args: &Args,
     source_codes: &'a HashMap<&'a str, String>,
 ) -> anyhow::Result<HashMap<&'a str, Vec<Token<'a>>>> {
     let mut files_tokens = HashMap::<&'a str, Vec<Token<'a>>>::new();
 
     for (file, data) in source_codes {
         info!("[lex_source_files::{file}] Iniciando a análise léxica do arquivo");
-        let mut lexer = ManualDFALexer::new(data.as_str());
+        let mut lexer = ManualDFALexer::new(data.as_str(), args.use_errors_key);
         debug!("[lex_source_files::{file}] Instanciado o lexer para iniciar a análise");
-        let tokens = lexer.tokenize();
+        let tokens = lexer.tokenize().map_err(|err| err.with_file(file.to_string()))?;
         files_tokens.insert(*file, tokens);
         debug!("[lex_source_files::{file}] Finalizada a tokenização do arquivo");
     }
@@ -102,7 +99,7 @@ fn main() -> anyhow::Result<()> {
     validate_source_files(&args)?;
 
     let source_codes = acquire_source_codes(&args)?;
-    let source_files_tokens = lex_source_codes(&source_codes)?;
+    let source_files_tokens = lex_source_codes(&args, &source_codes)?;
 
     println!(
         "Hello, world! usou key: {}; arquivos fontes: {:#?};",
