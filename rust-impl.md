@@ -99,3 +99,20 @@ somente $(\mathit{ID},\mathit{NUM_INTEIRO})$.
 Assim, alterou-se a implementação para considerar todo `+` e `-` exclusivamente como os seus próprios
 _tokens_, isto é, não mais compondo inteiros. Dessa forma, será responsabilidade da análise sintática,
 a ser realizada posteriormente, ditar se o símbolo é um sinal do número ou um operador.
+
+## Testes
+Utilizando uma IA, foram realizadas modificações nos arquivos de testes para que considerassem
+o compilador — que, até o momento, somente possui o serviço de análise léxica — em Rust e o utilizassem
+corretamente para performar as asserções e os comparativos (_benchmarks_).
+
+As alterações realizadas foram, em suma, a adição da opção de _lexer_ `rust` e de condicionais para
+compiliar o programa em modo _release_ e executar o programa binário ao invés do script Python
+`tpp_compiler.py`.
+
+Os comandos que executam o programa em Rust contém a _flag_ `-i`, como discutido na seção [Identificadores].
+Em alguns casos, onde se utiliza a função `get_lexer` para executar o analisador diretamente, houve de ser
+criado um _mock_ (`RustMockLexer`) para interfacear com o programa em Rust, visto que não é possível realizar
+chamadas para o analisador léxico diretamente do script Python sem uso de FFI — o que seria um trabalho em
+demásia e que não agregaria nada de relevante para o trabalho.
+
+[Identificadores]: #identificadores

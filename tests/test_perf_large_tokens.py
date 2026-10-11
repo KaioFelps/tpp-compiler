@@ -9,6 +9,9 @@ e valida para a estratégia selecionada via --lexer:
 3. Paridade estrita dos tipos de tokens gerados em relação ao baseline PLY
 """
 
+import subprocess
+import tempfile
+import os
 import sys
 import time
 import pytest
@@ -22,6 +25,60 @@ from tests.benchmark_lexers import generate_large_tpp_code, ALL_STRATEGIES
 
 # Quantidade de blocos para o teste de performance automatizado (~36.500 tokens)
 BENCHMARK_BLOCKS = 500
+
+
+class RustMockLexer:
+    """
+    Emula a interface do gerador de tokens em Python (PLY) chamando o binário Rust
+    para que os testes de conformidade funcionem sem alterações na arquitetura do teste.
+    """
+    def __init__(self):
+        self.tokens = []
+        self.idx = 0
+
+    def input(self, data):
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".tpp", delete=False) as f:
+            f.write(data)
+            tmp_path = f.name
+
+        try:
+            bin_path = "./target/release/tpp-compiler"
+            process = subprocess.run([bin_path, tmp_path], capture_output=True, text=True, check=True)
+            
+            combined = f"{process.stdout}\n{process.stderr}".strip()
+            
+            lines = []
+            for line in combined.splitlines():
+                line = line.strip()
+                # Filtra caminhos de arquivo intrusos ou linhas vazias
+                if not line or line.endswith(".tpp") or line.endswith(".c") or tmp_path in line:
+                    continue
+                lines.append(line)
+            
+            # Cria um objeto dummy com o atributo .type para imitar o token do PLY
+            class DummyToken:
+                def __init__(self, type_val):
+                    self.type = type_val
+
+            self.tokens = [DummyToken(t) for t in lines]
+        finally:
+            os.remove(tmp_path)
+            
+        self.idx = 0
+
+    def token(self):
+        if self.idx < len(self.tokens):
+            t = self.tokens[self.idx]
+            self.idx += 1
+            return t
+        return None
+
+
+def get_test_lexer(lexer_type):
+    """Fábrica local que injeta o mock do Rust se necessário."""
+    if lexer_type == "rust":
+        return RustMockLexer()
+    return get_lexer(lexer_type)
 
 
 def pytest_generate_tests(metafunc):
@@ -44,7 +101,7 @@ def large_tpp_code():
 @pytest.fixture(scope="module")
 def baseline_tokens(large_tpp_code):
     """Extrai os tipos de tokens de referência usando o PLYLexer (baseline)."""
-    ref_lexer = get_lexer("ply")
+    ref_lexer = get_test_lexer("ply")
     ref_lexer.input(large_tpp_code)
     tokens = []
     while True:
@@ -60,12 +117,13 @@ def test_large_token_sequence_performance(lexer_type, large_tpp_code):
     Mede o tempo de processamento para uma massa grande de tokens (>36.000 tokens).
     Verifica a taxa de transferência (tokens/segundo) e a ausência de erros.
     """
-    lexer = get_lexer(lexer_type)
+    lexer = get_test_lexer(lexer_type)
+
+    start_time = time.perf_counter()
+    # input() movemos para depois do start_time pois é no input que o Rust faz 100% do trabalho
     lexer.input(large_tpp_code)
 
     token_count = 0
-    start_time = time.perf_counter()
-
     while True:
         tok = lexer.token()
         if not tok:
@@ -90,7 +148,7 @@ def test_token_types_conformance_with_baseline(lexer_type, large_tpp_code, basel
     Verifica se a sequência exata de tipos de tokens gerada pela estratégia
     coincide integralmente com os tipos de tokens emitidos pelo baseline PLY.
     """
-    lexer = get_lexer(lexer_type)
+    lexer = get_test_lexer(lexer_type)
     lexer.input(large_tpp_code)
 
     current_tokens = []
