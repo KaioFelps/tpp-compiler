@@ -221,3 +221,9 @@ __marimo__/
 # Added by cargo
 
 /target
+
+
+# Relatório em PDF
+reports/*
+.DS_Store
+Relatório *.pdf
