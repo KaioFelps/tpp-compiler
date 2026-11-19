@@ -3,8 +3,8 @@
 
 #### Prof. Rogério Aparecido Gonçalves
 
-### __Resumo:__ Este documento apresenta a especificação da 1a. parte do trabalho de implementação da disciplina. O objetivo nessa etapa é projetar e implementar a a fase de *Análise Léxica* do compilador para a linguagem **TPP**. A Análise Léxica é a fase do compilador que lê o _código-fonte_ do arquivo de entrada como um fluxo de caracteres, e nesse processo de varredura reconhece os _tokens_ ou marcas da linguagem. Um repositório template foi preparado para que os alunos obtenham o código inicial da implementação dessa fase e o mesmo repositório será utilizado para as implementações das demais fases do projeto. São fornecidos testes automatizados para serem executados com o _pytest_ e modelo para o relatório de implementação do projeto.
-  
+__Resumo:__ _Este documento apresenta a especificação da 1a. parte do trabalho de implementação da disciplina. O objetivo nessa etapa é projetar e implementar a a fase de Análise Léxica do compilador para a linguagem __TPP__. A Análise Léxica é a fase do compilador que lê o _código-fonte do arquivo de entrada como um fluxo de caracteres, e nesse processo de varredura reconhece os tokens ou marcas da linguagem. Um repositório template foi preparado para que os alunos obtenham o código inicial da implementação dessa fase e o mesmo repositório será utilizado para as implementações das demais fases do projeto. São fornecidos testes automatizados para serem executados com o pytest e modelo para o relatório de implementação do projeto._
+
 # Análise Léxica
 
 A __Análise Léxica__ é a fase do compilador que lê o _código-fonte_ do arquivo de entrada como um fluxo de caracteres, e nesse processo de varredura reconhece os _tokens_ ou marcas da linguagem. As denominações Sistema de Varredura, Analisador Léxico e _Scanner_ são equivalentes.
@@ -33,6 +33,8 @@ Para implementar o sistema de varredura _(scanner)_ para a linguagem `TPP`, é n
 |                         | : dois-pontos   |
 |                         | [ abre-col      |
 |                         | ] fecha-col     |
+|                         | { abre-chave    |
+|                         | } fecha-chave   |
 |                         | && e-logico     |
 |                         | \|\| ou-logico  |
 |                         | ! negação       |
@@ -44,21 +46,17 @@ Ainda podem ser definidos os `tokens` seguintes:
 
 - **número**: 1 ou mais dígitos que podem ser *inteiro* ou *flutuante* (representação em notação científica ou não);
 - **identificador**: começa com uma letra e precede com $N$ letras e números sem limite de tamanho;
-- **comentários**: cercados de chaves da seguinte forma: `{...}`. É possível inclusive comentários que cubram múltiplas linhas. Comentários devem ser ignorados no processo de reconhecimento.
+- **comentários**: cercados de chaves com asterisco da seguinte forma: `{*...*}`. As chaves sem asterisco (`{` e `}`) são os tokens `ABRE_CHAVE` e `FECHA_CHAVE`, usados na inicialização de arrays (`A := {1, 2, 3}`). É possível inclusive comentários que cubram múltiplas linhas. Comentários devem ser ignorados no processo de reconhecimento.
 
 Os `tokens` estão definidos na [Gramática da Linguagem](https://docs.google.com/document/d/1e7_M-bD1RUbJAnyR8rZyJ35vKbYEN6KQG4l5L8FQ7_I/edit?usp=sharing)[^3], e são listados no @lst:tokens.
 
 
 ```{#lst:tokens .ebnf caption="Tokens da Linguagem"}
-MAIS, MENOS, VEZES, DIVIDE, DOIS_PONTOS, VIRGULA, MENOR, MAIOR, IGUAL, DIFERENTE, 
-MENOR_IGUAL, MAIOR_IGUAL, E, OU, NAO, ABRE_PARENTESE, FECHA_PARENTESE, 
-ABRE_COLCHETE, FECHA_COLCHETE, SE, ENTAO, SENAO, FIM, REPITA, ATE, ATRIBUICAO, 
-LEIA, ESCREVA, RETORNA, INTEIRO, FLUTUANTE, NUM_INTEIRO, NUM_PONTO_FLUTUANTE, 
-NUM_NOTACAO_CIENTIFICA, ID
+MAIS, MENOS, VEZES, DIVIDE, DOIS_PONTOS, VIRGULA, MENOR, MAIOR, IGUAL, DIFERENTE, MENOR_IGUAL, MAIOR_IGUAL, E, OU, NAO, ABRE_PARENTESE,  FECHA_PARENTESE, ABRE_COLCHETE, FECHA_COLCHETE, ABRE_CHAVE, FECHA_CHAVE, SE, ENTAO, SENAO, FIM, REPITA, ATE, ATRIBUICAO, LEIA, ESCREVA, RETORNA, INTEIRO, FLUTUANTE, NUM_INTEIRO, NUM_PONTO_FLUTUANTE, NUM_NOTACAO_CIENTIFICA, ID
 ```
 [^3]:[Gramática da Linguagem](https://docs.google.com/document/d/1e7_M-bD1RUbJAnyR8rZyJ35vKbYEN6KQG4l5L8FQ7_I/edit?usp=sharing)
 
-**Obs.:** As palavras reservadas são em português brasileiro como indicado na tabela, com acentuação.
+Este documento apresenta a especificação da 1a. parte do trabalho de implementação da disciplina. O objetivo nessa etapa é projetar e implementar a a fase de Análise Léxica do compilador para a linguagem __TPP__. A Análise Léxica é a fase do compilador que lê o _código-fonte do arquivo de entrada como um fluxo de caracteres, e nesse processo de varredura reconhece os tokens ou marcas da linguagem. Um repositório template foi preparado para que os alunos obtenham o código inicial da implementação dessa fase e o mesmo repositório será utilizado para as implementações das demais fases do projeto. São fornecidos testes automatizados para serem executados com o pytest e modelo para o relatório de implementação do projeto._**Obs.:** As palavras reservadas são em português brasileiro como indicado na tabela, com acentuação.
 
 O código base para a implementação está disponível no link [Link para o Código de Start no Github Classroom](https://moodle.utfpr.edu.br/mod/url/view.php?id=1733830) do Moodle.
 
@@ -132,8 +130,8 @@ No [Código de Start](https://moodle.utfpr.edu.br/mod/url/view.php?id=1733830) t
 
 ```text
  GlobalErrorMessages.properties
- tpplexer/__LexerErrorMessages.properties
- tppparser/ ParserErrorMessages.properties
+ tpplexer/LexerErrorMessages.properties
+ tppparser/ParserErrorMessages.properties
  tppsema/SemaErrorMessages.properties
  tppcodegen/CodeGenErrorMessages.properties
 ```
@@ -480,18 +478,21 @@ tests/lex-tests/lex-test-001.tpp
 
 Arquivo: `tests/lex-tests/lex-test-001.tpp`.
 
-[columns]
+:::: {.columns}
 
-[column=0.5]
-
+::: {.column width="47.5%"}
 __Entrada:__
 
 ```txt
 inteiro: a,b
 ```
+:::
 
-[column=0.5]
+::: {.column width="5%"}
+<!-- empty column to create gap -->
+:::
 
+::: {.column width="47.5%"}
 __Saída gerada:__
 
 ```txt
@@ -501,8 +502,9 @@ ID
 VIRGULA
 ID
 ```
+:::
 
-[/columns]
+::::
 
 
 Exemplo de saída para teste com erro em _execução normal_.
@@ -514,19 +516,22 @@ Exemplo de saída para teste com erro em _execução normal_.
 
 Arquivo: `tests/lex-tests/lex-test-002.tpp`
 
-[columns]
+:::: {.columns}
 
-[column=0.5]
-
+::: {.column width="47.5%"}
 __Entrada:__
 
 ```txt
 inteiro: a,b
 ç
 ```
+:::
 
-[column=0.5]
+::: {.column width="5%"}
+<!-- empty column to create gap -->
+:::
 
+::: {.column width="47.5%"}
 __Saída gerada:__
 
 ```txt
@@ -537,8 +542,10 @@ VIRGULA
 ID
 Erro[2][1]: Caracter inválido. valor: ç
 ```
+:::
 
-[/columns]
+::::
+
 
 Já em uma _execução de testes automatizados_ seja fornecido um parâmetro `-k` que imprima o código de erro apenas, possibilitando que o código apareça entre os _tokens_ da lista de _tokens_ gerada para o arquivo de entrada.
 
@@ -551,18 +558,21 @@ Exemplo de saída para teste sem erros em _execução de testes automatizados_ n
 
 Arquivo: `tests/lex-tests/lex-test-001.tpp`
 
-[columns]
+:::: {.columns}
 
-[column=0.5]
-
+::: {.column width="47.5%"}
 __Entrada:__
 
 ```txt
 inteiro: a,b
 ```
+:::
 
-[column=0.5]
+::: {.column width="5%"}
+<!-- empty column to create gap -->
+:::
 
+::: {.column width="47.5%"}
 __Saída gerada:__
 
 ```txt
@@ -572,8 +582,9 @@ ID
 VIRGULA
 ID
 ```
+:::
 
-[/columns]
+::::
 
 Exemplo de saída para teste com erros em _execução de testes automatizados_.
 
@@ -584,10 +595,9 @@ Exemplo de saída para teste com erros em _execução de testes automatizados_.
 
 Arquivo: `tests/lex-tests/lex-test-002.tpp`
 
-[columns]
+:::: {.columns}
 
-[column=0.5]
-
+::: {.column width="47.5%"}
 __Entrada:__
 
 ```txt
@@ -595,8 +605,11 @@ inteiro: a,b
 ç
 ```
 
-[column=0.5]
+::: {.column width="5%"}
+<!-- empty column to create gap -->
+:::
 
+::: {.column width="47.5%"}
 __Saída gerada:__
 
 ```txt
@@ -607,7 +620,9 @@ VIRGULA
 ID
 ERR-LEX-INV-CHAR
 ```
-[/columns]
+::: 
+
+::::
 
 Note que a opção `-k` foi introduzida e a chave `ERR-LEX-INV-CHAR` foi impressa no lugar da mensagem de erro, facilitando a verificação automatizada do código, sem a preocupação sobre o formato da mensagem de erro que desenvolvedor colocou.
 
@@ -666,37 +681,31 @@ O trabalho será **individual** e deverá ser entregue até o dia **06/10/2026**
 
 **Obs.:** Favor utilizar ZIP como forma de compactação. O Relatório deve ser entregue impresso, no horário da aula, para o professor.
 
-\newpage
 
-## Leitura Recomendada {.allowframebreaks}
-\normalsize
+## Leitura Recomendada
 
-[alertblock]{Leitura Recomendada}
+> [!IMPORTANT]
+> __Capítulo 2: Varredura__
+> 
+> **Livro**: [```LOUDEN, Kenneth C. Compiladores: principios e praticas. Sao Paulo, SP: Thomson, c2004. xiv, 569 p. ISBN 8522104220.```](https://integrada.minhabiblioteca.com.br/reader/books/9788522128532/pageid/95)
 
-__Capítulo 2: Varredura__
+> [!IMPORTANT]
+> **Leitura Recomendada**
+> 
+> __Capítulo 3: Análise Léxica__
+> 
+> **Livro**: [`AHO, Alfred V. et al. Compiladores: principios, tecnicas e ferramentas. 2. ed. Sao Paulo, SP: Pearson Addison-Wesley, 2008. x, 634 p. ISBN 9788588639249.`](https://integrada.minhabiblioteca.com.br/#/books/9788588639249/pageid/89)
 
-**Livro**: [```LOUDEN, Kenneth C. Compiladores: principios e praticas. Sao Paulo, SP: Thomson, c2004. xiv, 569 p. ISBN 8522104220.```](https://integrada.minhabiblioteca.com.br/reader/books/9788522128532/pageid/95)
+> [!IMPORTANT]
+> **Leitura Recomendada**
+> 
+>__Capítulo 2: Scanners__
+> 
+> **Livro**: [`COOPER, Keith D.; TORCZON, Linda. Construindo compiladores. Rio de Janeiro, RJ: Elsevier/Campus, 2014. xxiv, 656 p. ISBN 9788535255645. Disponível em: https://research.ebsco.com/linkprocessor/plink?id=debd0a1f-ba89-3ee8-b0a1-2c929486cc51. Acesso em: 12 mar. 2024.`](https://integrada.minhabiblioteca.com.br/#/books/9781558606982/pageid/48)
 
-[/alertblock]
-
-[exampleblock]{Leitura Recomendada}
-
-__Capítulo 3: Análise Léxica__
-
-**Livro**: [`AHO, Alfred V. et al. Compiladores: principios, tecnicas e ferramentas. 2. ed. Sao Paulo, SP: Pearson Addison-Wesley, 2008. x, 634 p. ISBN 9788588639249.`](https://integrada.minhabiblioteca.com.br/#/books/9788588639249/pageid/89)
-
-[/exampleblock]
-
-[block]{Leitura Recomendada}
-
-__Capítulo 2: Scanners__
-
-**Livro**: [`COOPER, Keith D.; TORCZON, Linda. Construindo compiladores. Rio de Janeiro, RJ: Elsevier/Campus, 2014. xxiv, 656 p. ISBN 9788535255645. Disponível em: https://research.ebsco.com/linkprocessor/plink?id=debd0a1f-ba89-3ee8-b0a1-2c929486cc51. Acesso em: 12 mar. 2024.`](https://integrada.minhabiblioteca.com.br/#/books/9781558606982/pageid/48)
-
-[/block]
 
 ## _Word Cloud_
 
-![](figuras/trabalho-01.md.wordcloud.png){ width=100% }
+![](figuras/lex-specs.md.wordcloud.png)
 
 ## Referências {.fragile .allowframebreaks}
