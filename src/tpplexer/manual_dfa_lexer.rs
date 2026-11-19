@@ -46,6 +46,10 @@ static RESERVED_WORDS: LazyLock<HashMap<&str, TokenKind>> = LazyLock::new(|| {
 });
 
 /// Chars that can be either a single symbol but can also form a pair
+// comments ({* and *}) doesn't imply curly brackets being in this array because
+// they're parsed before these arrays are considered; they're manually checked
+// through lookahead and are not in `CHAR_PAIRS_SYMBOLS_THAT_INTERSECTS_WITH_SINGLE_CHAR_SYMBOLS`
+// or whatsoever, hence it doesn't need to be here.
 const CHARS_THAT_CAN_BE_SINGLE_OR_PAIRS: [char; 3] = ['<', '>', ':'];
 static SINGLE_CHAR_SYMBOLS: LazyLock<HashMap<char, TokenKind>> = LazyLock::new(|| {
     HashMap::from_iter([
@@ -53,6 +57,9 @@ static SINGLE_CHAR_SYMBOLS: LazyLock<HashMap<char, TokenKind>> = LazyLock::new(|
         (')', TokenKind::FechaParentese),
         ('[', TokenKind::AbreColchete),
         (']', TokenKind::FechaColchete),
+        // instead, we put them here, since these will be checked **after** comments have been checked
+        ('{', TokenKind::AbreChave),
+        ('}', TokenKind::FechaChave),
         ('!', TokenKind::Nao),
         ('=', TokenKind::Igual),
         ('<', TokenKind::Menor),
@@ -90,6 +97,11 @@ fn log_lexeme_found(lexeme: &str, pos: usize, token_kind: TokenKind) {
 #[inline]
 fn log_lexeme_char_found(lexeme: char, pos: usize, token_kind: TokenKind) {
     debug!(r#"[Lexer] Lexema "{lexeme}" identificado na posição {pos} como {token_kind:?}."#);
+}
+
+enum WasParsingComment {
+    Yes,
+    No,
 }
 
 pub struct ManualDFALexer<'this> {
@@ -169,6 +181,18 @@ impl<'this> Lexer<'this> for ManualDFALexer<'this> {
                 continue;
             }
 
+            if char == '{' {
+                match self.lookahead_check_comment(&mut iterator, char) {
+                    Ok(WasParsingComment::Yes) => {
+                        continue;
+                    }
+                    Err(err) => {
+                        return Some(Err(err));
+                    }
+                    _ => (),
+                };
+            }
+
             if let Some(token_kind) = SINGLE_CHAR_SYMBOLS.get(&char).cloned() {
                 if CHARS_THAT_CAN_BE_SINGLE_OR_PAIRS.contains(&char)
                     && let Some(next_char) = iterator.peek().cloned()
@@ -201,13 +225,6 @@ impl<'this> Lexer<'this> for ManualDFALexer<'this> {
                 log_lexeme_found(&lexeme, self.cursor, token_kind.clone());
                 let token = self.prepare_token(token_kind, &self.data[self.cursor..self.next_cursor_value]);
                 return Some(Ok(token));
-            }
-
-            if char == '{' {
-                if let Err(err) = self.lookahead_check_comment(&mut iterator, char) {
-                    return Some(Err(err));
-                }
-                continue;
             }
 
             return Some(Err(TppCompilerError::new_lexer(
@@ -363,29 +380,56 @@ impl<'this> ManualDFALexer<'this> {
         &mut self,
         iterator: &mut MultiPeek<Chars<'_>>,
         first_char: char,
-    ) -> Result<(), TppCompilerError> {
+    ) -> Result<WasParsingComment, TppCompilerError> {
         let mut byte_offset = first_char.len_utf8();
+        let mut is_within_comment = false;
+        let mut ready_to_close_comment = false;
 
         for char in iterator.by_ref() {
             byte_offset += char.len_utf8();
 
+            if char == '*' {
+                if !is_within_comment {
+                    is_within_comment = true;
+                } else {
+                    ready_to_close_comment = true;
+                }
+                continue;
+            }
+
+            if !is_within_comment {
+                return Ok(WasParsingComment::No);
+            }
+
+            if char == '}' && ready_to_close_comment {
+                self.next_cursor_value = self.cursor + byte_offset;
+                return Ok(WasParsingComment::Yes);
+            } else if ready_to_close_comment {
+                // handles cases like `{* fooo * a}`; * was not forming *} at all
+                ready_to_close_comment = false
+            }
+
             if char == '\n' {
                 self.line_number += 1;
             }
-
-            if char == '}' {
-                self.next_cursor_value = self.cursor + byte_offset;
-                return Ok(());
-            }
         }
 
-        Err(TppCompilerError::new_lexer(
-            "ERR-LEX-UNC-COMMENT",
-            self.force_error_key,
-            "".to_string(),
-            self.line_number,
-            self.get_column(self.data, self.cursor),
-            None,
-        ))
+        // if it was indeed an unclosed comment, we gotta advance the cursor and consume the chars up to
+        // EOL. this stops the lexer from tokenizing further chars as other tokens, what is unexpected behavior
+        if is_within_comment {
+            self.next_cursor_value = self.cursor + byte_offset;
+            // returning this outside of this if-branch causes '{' as last char from file being parsed as
+            // comment instead of ABRE_CHAVE
+            return Err(TppCompilerError::new_lexer(
+                "ERR-LEX-UNC-COMMENT",
+                self.force_error_key,
+                "".to_string(),
+                self.line_number,
+                self.get_column(self.data, self.cursor),
+                None,
+            ));
+        }
+
+        Ok(WasParsingComment::No)
     }
 }
