@@ -15,6 +15,13 @@ def pytest_addoption(parser):
         choices=["all", "ply", "mandfa", "symtable", "symtableman", "automatalib", "automatalibman", "rust"],
         help="Especifica qual lexer testar: ply, mandfa, symtable, symtableman, automatalib, automatalibman, rust ou all (padrão: ply)",
     )
+    parser.addoption(
+        "--parser",
+        action="store",
+        default="yacc",
+        choices=["all", "yacc", "topdown"],
+        help="Especifica qual parser testar: yacc, topdown ou all (padrão: yacc)",
+    )
 
 def pytest_collection_modifyitems(config, items):
     lexer = config.getoption("--lexer")
