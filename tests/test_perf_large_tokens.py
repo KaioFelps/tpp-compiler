@@ -43,7 +43,7 @@ class RustMockLexer:
 
         try:
             bin_path = "./target/release/tpp-compiler"
-            process = subprocess.run([bin_path, tmp_path], capture_output=True, text=True, check=True)
+            process = subprocess.run([bin_path, "-i", "--omit-eos", tmp_path], capture_output=True, text=True, check=True)
             
             combined = f"{process.stdout}\n{process.stderr}".strip()
             

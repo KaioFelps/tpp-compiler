@@ -37,7 +37,9 @@ def test_execute(lexer_type, key_option, input_file):
 
     # Executa o comando de compilação.
     if lexer_type == "rust":
-        cmd = "./target/release/tpp-compiler -i {0} {1}".format(key_option, path_file)
+        # -i so that it forces the identifier subset
+        # --omit-eos so that it doesn't emit EndOfStatement tokens (same as 'NEWLINE' token from python impls)
+        cmd = "./target/release/tpp-compiler -i --omit-eos {0} {1}".format(key_option, path_file)
     else:
         cmd = "python src/tpp_compiler.py --lexer {0} {1} {2}".format(lexer_type, key_option, path_file)
 
