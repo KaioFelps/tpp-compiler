@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TokenKind {
     Ident,
     Mais,
@@ -39,9 +39,10 @@ pub enum TokenKind {
     NumInteiro,
     NumPontoFlutuante,
     NumNotacaoCientifica,
+    FimDeSentenca,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Token<'a> {
     kind: TokenKind,
     /// A window of the value from the actual source code string.
@@ -67,6 +68,22 @@ impl<'a> Token<'a> {
 
     pub fn kind(&self) -> &TokenKind {
         &self.kind
+    }
+
+    pub fn value(&self) -> &str {
+        self.value
+    }
+
+    pub fn line_number(&self) -> usize {
+        self.line_number
+    }
+
+    pub fn value_begin_pos(&self) -> usize {
+        self.value_begin_pos
+    }
+
+    pub fn col_number(&self) -> usize {
+        self.col_number
     }
 }
 
@@ -110,6 +127,7 @@ impl Display for TokenKind {
             Self::NumInteiro => "NUM_INTEIRO",
             Self::NumPontoFlutuante => "NUM_PONTO_FLUTUANTE",
             Self::NumNotacaoCientifica => "NUM_NOTACAO_CIENTIFICA",
+            Self::FimDeSentenca => "END_OF_STATEMENT",
         };
 
         write!(f, "{stringified}")

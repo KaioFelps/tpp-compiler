@@ -1,3 +1,4 @@
+mod end_of_statement;
 mod manual_dfa_lexer;
 
 use crate::{errors::TppCompilerError, token::Token};

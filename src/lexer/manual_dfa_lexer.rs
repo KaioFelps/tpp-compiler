@@ -104,13 +104,13 @@ enum WasParsingComment {
 
 pub struct ManualDFALexer<'this> {
     /// A view of the whole source code string.
-    data: &'this str,
+    pub(super) data: &'this str,
     /// The position of the character being analyzed in the source code string.
-    cursor: usize,
+    pub(super) cursor: usize,
     /// The position the cursor must be moved to on the next char read.
     next_cursor_value: usize,
     /// The current line in the source code.
-    line_number: usize,
+    pub(super) line_number: usize,
     /// Whether the errors should have `force_key` option enabled.
     force_error_key: bool,
     /// Whether the subsets should consider just a subset of the actual acceptable
@@ -120,10 +120,31 @@ pub struct ManualDFALexer<'this> {
     /// This is useful for the tests that compare this lexer against the
     /// Python implementations.
     use_identifiers_reduced_subset: bool,
+    /// A slot to hold a token that was omitted until the next round due to a
+    /// implicit [`TokenKind::FimDeSentenca`] emission.
+    ///
+    /// When `Some(token)`, `token` will be immediately returned on the next
+    /// [`Self::next_token`] call.
+    pub(super) held_token: Option<Token<'this>>,
+    /// Whether [`TokenKind::FimDeSentenca`] tokens should never be emitted.
+    pub(super) skip_end_of_statement: bool,
+    /// A clone of the previous emitted token. Used to handle
+    /// [`TokenKind::FimDeSentenca`] emission.
+    pub(super) previous_token: Option<Token<'this>>,
+    /// How deep the current token is in nestness (i.e., how many (, {, [ or other wrapper
+    /// structures are surrounding the token under the lexer cursor).
+    pub(super) cursor_depth: usize,
+    pub(super) reached_eof: bool,
 }
 
 impl<'this> Lexer<'this> for ManualDFALexer<'this> {
     fn next_token(&mut self) -> Option<Result<Token<'this>, TppCompilerError>> {
+        if let Some(token) = self.held_token.take() {
+            self.release_token(&token);
+            debug!("[Lexer] Dando preferência para o token mantido para a atual tokenização ({token:?}).");
+            return Some(Ok(token));
+        }
+
         // last calls to `next_token` might have updated `self.next_cursor_value` but left
         // without updating self.cursor, so we defer this responsability to `next_token` itself.
         // won't affect the first char reading since `next_cursor_value` is initialized as the
@@ -143,12 +164,13 @@ impl<'this> Lexer<'this> for ManualDFALexer<'this> {
             debug!("[Lexer] Aplicando análise léxica em '{char}' ({}).", self.cursor);
 
             if self.is_valid_identifier_letter(char) || char == '_' {
-                return Some(Ok(self.lookahead_check_identifier_or_reserved_word(&mut iterator, char)));
+                let token = self.lookahead_check_identifier_or_reserved_word(&mut iterator, char);
+                return self.emit_token(token);
             }
 
             if char.is_numeric() || char == '+' || char == '-' {
                 if let Some(token) = self.lookahead_check_number(&mut iterator, char) {
-                    return Some(Ok(token));
+                    return self.emit_token(token);
                 }
 
                 if char.is_numeric() {
@@ -192,7 +214,7 @@ impl<'this> Lexer<'this> for ManualDFALexer<'this> {
             }
 
             if let Some(token_kind) = SINGLE_CHAR_SYMBOLS.get(&char).cloned() {
-                if CHARS_THAT_CAN_BE_SINGLE_OR_PAIRS.contains(&char)
+                let token = if CHARS_THAT_CAN_BE_SINGLE_OR_PAIRS.contains(&char)
                     && let Some(next_char) = iterator.peek().cloned()
                     && let Some(token_kind) = CHAR_PAIRS_SYMBOLS_THAT_INTERSECTS_WITH_SINGLE_CHAR_SYMBOLS
                         .get(format!("{char}{next_char}").as_str())
@@ -203,13 +225,13 @@ impl<'this> Lexer<'this> for ManualDFALexer<'this> {
 
                     let lexeme = format!("{char}{next_char}");
                     log_lexeme_found(&lexeme, self.cursor, token_kind.clone());
-                    let token = self.prepare_token(token_kind, &self.data[self.cursor..self.next_cursor_value]);
-                    return Some(Ok(token));
-                }
+                    self.prepare_token(token_kind, &self.data[self.cursor..self.next_cursor_value])
+                } else {
+                    log_lexeme_char_found(char, self.cursor, token_kind.clone());
+                    self.prepare_token(token_kind, &self.data[self.cursor..self.next_cursor_value])
+                };
 
-                log_lexeme_char_found(char, self.cursor, token_kind.clone());
-                let token = self.prepare_token(token_kind, &self.data[self.cursor..self.next_cursor_value]);
-                return Some(Ok(token));
+                return self.emit_token(token);
             }
 
             if FIRST_CHARS_OF_CHAR_PAIR_TOKENS.contains(&char)
@@ -222,7 +244,7 @@ impl<'this> Lexer<'this> for ManualDFALexer<'this> {
                 let lexeme = format!("{char}{next_char}");
                 log_lexeme_found(&lexeme, self.cursor, token_kind.clone());
                 let token = self.prepare_token(token_kind, &self.data[self.cursor..self.next_cursor_value]);
-                return Some(Ok(token));
+                return self.emit_token(token);
             }
 
             return Some(Err(TppCompilerError::new_lexer(
@@ -235,12 +257,17 @@ impl<'this> Lexer<'this> for ManualDFALexer<'this> {
             )));
         }
 
-        None
+        self.maybe_generate_eof_token().map(Ok)
     }
 }
 
 impl<'this> ManualDFALexer<'this> {
-    pub fn new(data: &'this str, force_error_key: bool, use_identifiers_reduced_subset: bool) -> Self {
+    pub fn new(
+        data: &'this str,
+        force_error_key: bool,
+        use_identifiers_reduced_subset: bool,
+        skip_end_of_statement: bool,
+    ) -> Self {
         Self {
             cursor: 0,
             next_cursor_value: 0,
@@ -248,10 +275,23 @@ impl<'this> ManualDFALexer<'this> {
             data,
             force_error_key,
             use_identifiers_reduced_subset,
+            cursor_depth: 0,
+            held_token: None,
+            previous_token: None,
+            skip_end_of_statement,
+            reached_eof: false,
         }
     }
 
-    fn prepare_token(&self, kind: TokenKind, value: &'this str) -> Token<'this> {
+    /// A simple helper for running the token emission routine.
+    fn emit_token(&mut self, token: Token<'this>) -> Option<Result<Token<'this>, TppCompilerError>> {
+        let token = self.maybe_insert_eos_token(token);
+        self.release_token(&token);
+        debug!("[Lexer] Armazenado token ({token:?}) como o token anterior da próxima tokenização.");
+        Some(Ok(token))
+    }
+
+    pub(super) fn prepare_token(&self, kind: TokenKind, value: &'this str) -> Token<'this> {
         Token::new(
             kind,
             value,
