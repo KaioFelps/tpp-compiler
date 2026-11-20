@@ -14,7 +14,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Instalar dependências extras para o Autograding
-        run: sudo pip install automata-lib configparser --break-system-packages
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
 
       - uses: education/autograding@v1

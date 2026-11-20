@@ -2,8 +2,8 @@
   "tests": [
     {
       "name": "Testes para a Análise Léxica",
-      "setup": "sudo -H pip3 install pytest ply",
-      "run": "pytest -v",
+      "setup": "uv sync",
+      "run": "uv run pytest -v",
       "input": "",
       "output": "",
       "comparison": "included",
