@@ -42,8 +42,8 @@ impl Display for ErrorMessagesSection {
 /// The _ini_ config for each error kind
 const ERROR_MESSAGES_DESCRIPTORS: [&str; 3] = [
     include_str!("GlobalErrorMessages.properties"),
-    include_str!("tpplexer/LexerErrorMessages.properties"),
-    include_str!("tppparser/ParserErrorMessages.properties"),
+    include_str!("errors/LexerErrorMessages.properties"),
+    include_str!("errors/ParserErrorMessages.properties"),
     // include_str!("tppsema/SemaErrorMessages.properties"),
     // include_str!("tppcodegen/CodeGenErrorMessages.propertie"),
 ];
