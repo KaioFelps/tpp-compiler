@@ -1,13 +1,13 @@
 mod cli;
 mod errors;
+mod lexer;
 mod token;
-mod tpplexer;
 
 use crate::{
     cli::Args,
     errors::TppCompilerError,
+    lexer::{Lexer, ManualDFALexer},
     token::Token,
-    tpplexer::{Lexer, ManualDFALexer},
 };
 use clap::Parser;
 use log::{debug, info};

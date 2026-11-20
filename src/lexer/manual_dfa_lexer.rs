@@ -1,8 +1,6 @@
-use crate::{
-    errors::TppCompilerError,
-    token::{Token, TokenKind},
-    tpplexer::Lexer,
-};
+use super::Lexer;
+use crate::errors::TppCompilerError;
+use crate::token::{Token, TokenKind};
 use const_format::formatcp;
 use itertools::{Itertools, MultiPeek};
 use log::debug;
