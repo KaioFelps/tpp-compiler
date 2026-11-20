@@ -129,7 +129,7 @@ No [Código de Start](https://moodle.utfpr.edu.br/mod/url/view.php?id=1733830) t
 É necessário terminar o desenvolvimento da parte de tratamento de erros. Está sendo disponibilizado uma classe de tratamento de erros que será utilizada em todas as fases do projeto, a `src/myerror.py` que carrega uma lista de erros _globais_ e de cada módulo lendo os arquivos:
 
 ```text
- GlobalErrorMessages.properties
+ errors/GlobalErrorMessages.properties
  tpplexer/LexerErrorMessages.properties
  tppparser/ParserErrorMessages.properties
  tppsema/SemaErrorMessages.properties
