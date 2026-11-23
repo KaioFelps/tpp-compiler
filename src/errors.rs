@@ -1,6 +1,8 @@
 use configparser::ini::Ini;
 use log::warn;
-use std::{collections::HashMap, fmt::Display, sync::LazyLock};
+use std::{collections::HashMap, fmt::Display, ops::Deref, sync::LazyLock};
+
+use crate::token::OwnedToken;
 
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum ErrorMessagesSection {
@@ -90,31 +92,59 @@ pub enum ErrorKind {
         column: usize,
         lexeme: String,
     },
-    Parser,
+    Parser {
+        file: String,
+        /// The token that was currently being analysed when the error occurred.
+        ///
+        /// ## Usage
+        /// If present, it can be used in error messages through the following placeholders:
+        /// - `{tok}` is replaced with `OwnedToken` simple debug print (`"{:?}"`)
+        /// - `{tok:kind}` is replaced with `OwnedToken::kind`
+        /// - `{tok:value}` is replaced with `OwnedToken::value`
+        /// - `{tok:line}` is replaced with `OwnedToken::line_number`
+        /// - `{tok:col}` is replaced with `OwnedToken::col_number`
+        current_token: Option<OwnedToken>,
+        /// If an extra token other than the current one being analysed can provide
+        /// better context for the error message (e.g., the next token that failed upon peek
+        /// and caused the error), it can be placed here and will replace `{extra_tok}`
+        /// placeholders upon error messages.
+        ///
+        /// ## Usage
+        /// - `{extra_tok}` is replaced with `OwnedToken` simple debug print (`"{:?}"`)
+        /// - `{extra_tok:kind}` is replaced with `OwnedToken::kind`
+        /// - `{extra_tok:value}` is replaced with `OwnedToken::value`
+        /// - `{extra_tok:line}` is replaced with `OwnedToken::line_number`
+        /// - `{extra_tok:col}` is replaced with `OwnedToken::col_number`
+        extra_token: Option<OwnedToken>,
+    },
 }
 
+// moved stuff into inner to the heap because rust compiler was warning this error was too large (~128 bytes)
 #[derive(Debug)]
-pub struct TppCompilerError {
+struct TppCompilerErrorInner {
     kind: ErrorKind,
     key: String,
     force_key: bool,
 }
 
+#[derive(Debug)]
+pub struct TppCompilerError(Box<TppCompilerErrorInner>);
+
 impl TppCompilerError {
     pub fn new<T: ToString>(kind: ErrorKind, key: T, force_key: bool) -> Self {
-        Self {
+        Self(Box::new(TppCompilerErrorInner {
             kind,
             key: key.to_string(),
             force_key,
-        }
+        }))
     }
 
     pub fn new_global<T: ToString>(key: T, force_key: bool, file: Option<String>) -> Self {
-        Self {
+        Self(Box::new(TppCompilerErrorInner {
             key: key.to_string(),
             force_key,
             kind: ErrorKind::Global { file },
-        }
+        }))
     }
 
     pub fn new_lexer<T: ToString>(
@@ -125,7 +155,7 @@ impl TppCompilerError {
         column: usize,
         file: Option<String>,
     ) -> Self {
-        Self {
+        Self(Box::new(TppCompilerErrorInner {
             force_key,
             kind: ErrorKind::Lexer {
                 file,
@@ -134,7 +164,25 @@ impl TppCompilerError {
                 lexeme,
             },
             key: key.to_string(),
-        }
+        }))
+    }
+
+    pub fn new_parser<T: ToString>(
+        key: T,
+        force_key: bool,
+        file: String,
+        current_token: Option<OwnedToken>,
+        extra_token: Option<OwnedToken>,
+    ) -> Self {
+        Self(Box::new(TppCompilerErrorInner {
+            key: key.to_string(),
+            force_key,
+            kind: ErrorKind::Parser {
+                file,
+                current_token,
+                extra_token,
+            },
+        }))
     }
 
     pub fn with_file(mut self, file: String) -> Self {
@@ -142,54 +190,65 @@ impl TppCompilerError {
         self
     }
 
-    pub fn set_file(&mut self, file: String) {
-        self.kind = match &self.kind {
-            ErrorKind::Global { file: _ } => ErrorKind::Global { file: Some(file) },
-            ErrorKind::Lexer {
-                file: _,
-                line,
-                column,
-                lexeme,
-            } => ErrorKind::Lexer {
-                file: Some(file),
-                line: *line,
-                column: *column,
-                lexeme: lexeme.clone(),
-            },
-            ErrorKind::Parser => ErrorKind::Parser,
+    pub fn set_file(&mut self, new_file: String) {
+        match &mut self.0.kind {
+            ErrorKind::Global { file, .. } | ErrorKind::Lexer { file, .. } => {
+                *file = Some(new_file);
+            }
+            ErrorKind::Parser { file, .. } => {
+                *file = new_file;
+            }
         };
     }
 }
 
 impl Display for TppCompilerError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.force_key {
-            return write!(f, "{}", self.key);
+        if self.0.force_key {
+            return write!(f, "{}", self.0.key);
         }
 
-        let section = match &self.kind {
-            ErrorKind::Global { file: _ } => ErrorMessagesSection::Global,
-            ErrorKind::Lexer {
-                file: _,
-                line: _,
-                column: _,
-                lexeme: _,
-            } => ErrorMessagesSection::Lexer,
-            ErrorKind::Parser => ErrorMessagesSection::Parser,
+        let section = match &self.0.kind {
+            ErrorKind::Global { .. } => ErrorMessagesSection::Global,
+            ErrorKind::Lexer { .. } => ErrorMessagesSection::Lexer,
+            ErrorKind::Parser { .. } => ErrorMessagesSection::Parser,
         };
 
         let mut content = if let Some(message) = ERROR_MESSAGES
             .get(&section)
-            .and_then(|section| section.get(self.key.as_str()))
+            .and_then(|section| section.get(self.0.key.as_str()))
         {
             message.to_string()
         } else {
-            self.key.clone()
+            self.0.key.clone()
         };
 
-        match &self.kind {
-            ErrorKind::Global { file } => {
-                content = content.replace("{file}", file.as_deref().unwrap_or_default());
+        match &self.0.kind {
+            ErrorKind::Global { file } => content = content.replace("{file}", file.as_deref().unwrap_or_default()),
+            ErrorKind::Parser {
+                file,
+                extra_token,
+                current_token,
+            } => {
+                content = content.replace("{file}", file.deref());
+
+                if let Some(token) = current_token {
+                    content = content
+                        .replace("{tok}", &format!("{token:?}"))
+                        .replace("{tok:kind}", &token.kind.to_string())
+                        .replace("{tok:value}", &token.value)
+                        .replace("{tok:line}", &token.line_number.to_string())
+                        .replace("{tok:col}", &token.col_number.to_string());
+                }
+
+                if let Some(token) = extra_token {
+                    content = content
+                        .replace("{extra_tok}", &format!("{token:?}"))
+                        .replace("{extra_tok:kind}", &token.kind.to_string())
+                        .replace("{extra_tok:value}", &token.value)
+                        .replace("{extra_tok:line}", &token.line_number.to_string())
+                        .replace("{extra_tok:col}", &token.col_number.to_string());
+                }
             }
             ErrorKind::Lexer {
                 file,
@@ -203,8 +262,7 @@ impl Display for TppCompilerError {
                     .replace("{column}", &column.to_string())
                     .replace("{lexeme}", lexeme);
             }
-            ErrorKind::Parser => {}
-        }
+        };
 
         write!(f, "{content}")
     }
@@ -220,6 +278,6 @@ impl std::error::Error for TppCompilerError {
     }
 
     fn description(&self) -> &str {
-        &self.key
+        &self.0.key
     }
 }
