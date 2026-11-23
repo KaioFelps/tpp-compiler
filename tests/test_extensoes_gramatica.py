@@ -37,7 +37,7 @@ def pytest_generate_tests(metafunc):
 
 def tokens_de(lexer_type, codigo):
     if lexer_type == "rust":
-        bin_path = "./target/release/tpp-compiler"
+        bin_path = "./target/release/tppc"
         if sys.platform == "win32":
             bin_path += ".exe"
 

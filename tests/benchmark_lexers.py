@@ -81,7 +81,7 @@ def run_benchmark_for_strategy(strategy: str, code: str, rounds: int = 3, warmup
         # compila o binário antes de começar a contar o tempo
         subprocess.run(["cargo", "build", "--release"], check=True, capture_output=True)
         
-        bin_path = "./target/release/tpp-compiler"
+        bin_path = "./target/release/tppc"
         if sys.platform == "win32":
             bin_path += ".exe"
             
