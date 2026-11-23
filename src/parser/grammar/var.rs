@@ -83,15 +83,10 @@ impl<'this> Parser<'this> {
 
         let ident_node = CstNode::new_terminal(token);
 
-        match self.inner_parse_var(ident_node)? {
-            Left(var_node) => Ok(var_node),
-            Right(ident_node) => {
-                Err(self.generate_error_with_token_opt("ERR-SYN-INVALID-VAR-DEF", ident_node.get_last_token()))
-            }
-        }
+        self.inner_parse_var(ident_node)
     }
 
-    pub(super) fn inner_parse_var(&mut self, ident_node: CstNode<'this>) -> GrammarInnerParseFailable<'this> {
+    pub(super) fn inner_parse_var(&mut self, ident_node: CstNode<'this>) -> GrammarFinalParseResult<'this> {
         let mut var_node = CstNode::new_non_terminal(NonTerminal::Var);
         var_node.append_child(ident_node);
 
@@ -101,7 +96,7 @@ impl<'this> Parser<'this> {
             .is_some_and(|kind| kind == TokenKind::AbreColchete);
 
         if !is_var {
-            return Ok(Left(var_node));
+            return Ok(var_node);
         }
 
         while let Some(token) = self.peek_current()
@@ -128,7 +123,7 @@ impl<'this> Parser<'this> {
             var_node.append_child(bracket_open_node);
         }
 
-        Ok(Left(var_node))
+        Ok(var_node)
     }
 
     pub(super) fn inner_parse_vars_init_with_parenthesis(
@@ -191,14 +186,7 @@ impl<'this> Parser<'this> {
         }
 
         // this var node is not for vars init, but to compose a target list
-        let var_node = match self.inner_parse_var(ident_node)? {
-            Left(node) => node,
-            Right(ident_node) => {
-                return Err(self
-                    .generate_error_with_token_opt("ERR-SYN-VARS-INITIALIZATION-INVALID-VAR", ident_node.get_token()));
-            }
-        };
-
+        let var_node = self.inner_parse_var(ident_node)?;
         let target_list_node = match self.inner_parse_targets_list(var_node)? {
             Left(node) => node,
             Right(ident_node) => {
