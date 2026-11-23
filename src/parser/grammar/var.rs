@@ -152,12 +152,17 @@ impl<'this> Parser<'this> {
         vars_init_node.append_child(targets_list);
 
         let parenthesis_close_token = match self.take_current() {
-            Some(token) => token,
+            Some(token) => {
+                if *token.kind() != TokenKind::FechaParentese {
+                    const ERROR_KEY: &str = "ERR-SYN-VARS-INITIALIZATION-EXPECTED-CLOSING-PAREN";
+                    return Err(self.generate_error_with_token(ERROR_KEY, &token));
+                }
+
+                token
+            }
             None => {
-                return Err(self.generate_error_with_token_opt(
-                    "ERR-SYN-VARS-INITIALIZATION-MISSING-CLOSING-PAREN",
-                    vars_init_node.get_last_token(),
-                ));
+                const ERROR_KEY: &str = "ERR-SYN-VARS-INITIALIZATION-MISSING-CLOSING-PAREN";
+                return Err(self.generate_error_with_token_opt(ERROR_KEY, vars_init_node.get_last_token()));
             }
         };
         let parenthesis_close_node = CstNode::new_terminal(parenthesis_close_token);
@@ -217,7 +222,7 @@ impl<'this> Parser<'this> {
     }
 
     fn parse_attribution(&mut self, latest_node: &CstNode<'this>) -> Result<CstNode<'this>, TppCompilerError> {
-        let attribution_token = match self.take_current() {
+        let token = match self.take_current() {
             Some(token) => token,
             None => {
                 return Err(self.generate_error_with_token_opt(
@@ -226,6 +231,15 @@ impl<'this> Parser<'this> {
                 ));
             }
         };
+
+        let attribution_token = match *token.kind() {
+            TokenKind::Atribuicao => token,
+            _ => {
+                const ERROR_KEY: &str = "ERR-SYN-VARS-INITIALIZATION-EXPECTED-ATTRIBUTION";
+                return Err(self.generate_error_with_token(ERROR_KEY, &token));
+            }
+        };
+
         Ok(CstNode::new_terminal(attribution_token))
     }
 }
