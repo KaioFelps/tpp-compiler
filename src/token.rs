@@ -162,3 +162,19 @@ impl Display for Token<'_> {
         )
     }
 }
+
+pub(super) trait IntoKind {
+    fn into_kind(&self) -> Option<TokenKind>;
+}
+
+impl<'t> IntoKind for Option<Token<'t>> {
+    fn into_kind(&self) -> Option<TokenKind> {
+        self.as_ref().map(|token| token.kind.clone())
+    }
+}
+
+impl<'t> IntoKind for Option<&Token<'t>> {
+    fn into_kind(&self) -> Option<TokenKind> {
+        self.map(|token| token.kind.clone())
+    }
+}
