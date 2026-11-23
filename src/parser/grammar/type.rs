@@ -1,6 +1,6 @@
 use crate::{
     errors::TppCompilerError,
-    parser::{Parser, cst::CstNode},
+    parser::{Parser, cst::CstNode, grammar::NonTerminal},
     token::TokenKind,
 };
 
@@ -16,7 +16,10 @@ impl<'this> Parser<'this> {
             .is_some_and(|token| matches!(*token.kind(), TokenKind::Inteiro | TokenKind::Flutuante))
         {
             let token = self.take_current().ok_or_else(|| self.generate_eof_error(None))?;
-            return Ok(Some(CstNode::new_terminal(token)));
+            let terminal_node = CstNode::new_terminal(token);
+            let mut type_non_term_node = CstNode::new_non_terminal(NonTerminal::Type);
+            type_non_term_node.append_child(terminal_node);
+            return Ok(Some(type_non_term_node));
         }
 
         Ok(None)
