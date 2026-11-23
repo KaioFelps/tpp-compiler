@@ -19,10 +19,7 @@ impl<'this> Parser<'this> {
         var_decl_node.append_child(type_node);
         let last_token = var_decl_node.get_last_token();
 
-        let colon = match self.take_current() {
-            Some(token) => CstNode::new_terminal(token),
-            None => return Err(self.generate_eof_error(last_token)),
-        };
+        let colon = CstNode::new_terminal(self.expect_token(last_token)?);
         var_decl_node.append_child(colon);
 
         let targets_list_node = self.parse_targets_list()?;
@@ -58,9 +55,8 @@ impl<'this> Parser<'this> {
                 break;
             }
 
-            let comma_token = self
-                .take_current()
-                .ok_or_else(|| self.generate_eof_error(targets_list_node.get_last_token()))?;
+            // no need to verify again its a token since we just verified it above
+            let comma_token = self.expect_token(targets_list_node.get_last_token())?;
             let comma_node = CstNode::new_terminal(comma_token);
             targets_list_node.append_child(comma_node);
 
@@ -72,10 +68,7 @@ impl<'this> Parser<'this> {
     }
 
     pub(super) fn parse_var(&mut self) -> GrammarFinalParseResult<'this> {
-        let token = match self.take_current() {
-            Some(token) => token,
-            None => return Err(self.generate_eof_error(None)),
-        };
+        let token = self.expect_token(None)?;
 
         if *token.kind() != TokenKind::Ident {
             return Err(self.generate_error_with_token("ERR-SYN-INVALID-VAR-DEF", &token));
@@ -102,19 +95,14 @@ impl<'this> Parser<'this> {
         while let Some(token) = self.peek_current()
             && *token.kind() == TokenKind::AbreColchete
         {
-            let bracket_open_token = self
-                .take_current()
-                .ok_or_else(|| self.generate_eof_error(var_node.get_last_token()))?;
+            let bracket_open_token = self.expect_token(var_node.get_last_token())?;
             let bracket_open_node = CstNode::new_terminal(bracket_open_token);
             var_node.append_child(bracket_open_node);
 
             let expr_node = self.parse_expr()?;
             var_node.append_child(expr_node);
 
-            let next_token = self
-                .take_current()
-                .ok_or_else(|| self.generate_eof_error(var_node.get_last_token()))?;
-
+            let next_token = self.expect_token(var_node.get_last_token())?;
             if *next_token.kind() != TokenKind::FechaColchete {
                 return Err(self.generate_error_with_token("ERR-SYN-MISSING-CLOSING-BRACKET", &next_token));
             }

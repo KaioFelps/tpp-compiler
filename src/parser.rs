@@ -91,4 +91,11 @@ impl<'this> Parser<'this> {
     fn peek_next(&self) -> Option<&Token<'this>> {
         self.tokens.get(1)
     }
+
+    fn expect_token(&mut self, nearest_token: Option<&Token<'_>>) -> Result<Token<'this>, TppCompilerError> {
+        match self.take_current() {
+            Some(token) => Ok(token),
+            None => Err(self.generate_eof_error(nearest_token)),
+        }
+    }
 }
