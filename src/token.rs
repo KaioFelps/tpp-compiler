@@ -55,6 +55,15 @@ pub struct Token<'a> {
     col_number: usize,
 }
 
+#[derive(Debug, Clone)]
+pub struct OwnedToken {
+    pub kind: TokenKind,
+    pub value: String,
+    pub value_begin_pos: usize,
+    pub line_number: usize,
+    pub col_number: usize,
+}
+
 impl<'a> Token<'a> {
     pub fn new(kind: TokenKind, value: &'a str, value_begin_pos: usize, line_number: usize, col_number: usize) -> Self {
         Self {
@@ -63,6 +72,16 @@ impl<'a> Token<'a> {
             value_begin_pos,
             line_number,
             col_number,
+        }
+    }
+
+    pub fn make_owned(&self) -> OwnedToken {
+        OwnedToken {
+            kind: self.kind.clone(),
+            value: self.value.to_string(),
+            value_begin_pos: self.value_begin_pos,
+            line_number: self.line_number,
+            col_number: self.col_number,
         }
     }
 
