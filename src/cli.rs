@@ -3,7 +3,7 @@
 use clap::Parser;
 use clap::ValueEnum;
 
-#[derive(Clone, Debug, ValueEnum)]
+#[derive(Clone, Copy, Debug, ValueEnum, PartialEq, Eq)]
 pub enum CompilerStepStop {
     Lexer,
     Parser,
@@ -48,4 +48,11 @@ pub struct Args {
     #[arg(name = "stop-at", short, long)]
     #[clap(default_value = None)]
     pub stop_at_step: Option<CompilerStepStop>,
+
+    /// Whether the parser should output the Concret Syntax Tree as an image.
+    ///
+    /// (Disabled by default.)
+    #[arg(name = "output-cst", long)]
+    #[clap(default_value_t = false)]
+    pub output_cst: bool,
 }
