@@ -21,8 +21,14 @@ impl<'this> Parser<'this> {
                 // TODO: return some more specific error
                 return Err(self.generate_error_with_token("ERR-SYN-IRRECUPERAVEL", &token));
             } else {
+                if program_node.has_children() {
+                    break;
+                }
+
                 return Err(self.generate_eof_error(program_node.get_last_token()));
             }
         }
+
+        Ok(program_node)
     }
 }
