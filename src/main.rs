@@ -8,7 +8,7 @@ use crate::{
     cli::{Args, CompilerStepStop},
     errors::TppCompilerError,
     lexer::{Lexer, ManualDFALexer},
-    parser::Parser,
+    parser::{CstNode, Parser},
     token::Token,
 };
 use clap::Parser as _;
@@ -112,7 +112,7 @@ fn lex_source_code<'a>(args: &Args, file: &str, data: &'a str) -> anyhow::Result
     Ok(tokens)
 }
 
-fn parse_source_code<'a>(args: &Args, file: &str, tokens: Vec<Token<'a>>) -> anyhow::Result<()> {
+fn parse_source_code<'a>(args: &Args, file: &'a str, tokens: Vec<Token<'a>>) -> anyhow::Result<CstNode<'a>> {
     info!("[parse_source_code::{file}] Instanciado o parser para iniciar a análise");
     let parser = Parser::new(file, tokens, args.use_errors_key);
 
@@ -120,11 +120,7 @@ fn parse_source_code<'a>(args: &Args, file: &str, tokens: Vec<Token<'a>>) -> any
     let cst = parser.into_cst()?;
     debug!("[parse_source_code::{file}] Finalizado o parsing do arquivo");
 
-    if args.output_cst {
-        println!("{cst:#?}");
-    }
-
-    Ok(())
+    Ok(cst)
 }
 
 fn run() -> anyhow::Result<()> {
@@ -142,7 +138,8 @@ fn run() -> anyhow::Result<()> {
             lex_and_print_source_code(&args, file, source_code);
         } else {
             let tokens = lex_source_code(&args, file, source_code)?;
-            parse_source_code(&args, file, tokens)?;
+            let cst = parse_source_code(&args, file, tokens)?;
+            println!("{cst:#?}");
         }
     }
 
