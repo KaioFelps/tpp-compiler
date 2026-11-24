@@ -4,7 +4,8 @@ use crate::errors::TppCompilerError;
 use crate::parser::Parser;
 use crate::parser::cst::CstNode;
 use crate::parser::grammar::{GrammarFinalParseResult, GrammarInnerParseFailable, NonTerminal};
-use crate::token::{IntoKind, TokenKind};
+use crate::token::TokenKind::{AbreParentese, FechaParentese, Virgula};
+use crate::token::{CanBeOfKind, IntoKind, TokenKind};
 
 impl<'this> Parser<'this> {
     // parse_func_decl removed since it's never referenced, whereas its inner variants.
@@ -251,6 +252,30 @@ impl<'this> Parser<'this> {
     }
 
     pub(super) fn inner_parse_as_func_call(&mut self, ident_node: CstNode<'this>) -> GrammarFinalParseResult<'this> {
-        todo!()
+        let mut func_call = CstNode::new_non_terminal(NonTerminal::FuncCall).with_child(ident_node);
+
+        let paren_open = self.expect_token(|| func_call.get_last_token())?;
+        if !paren_open.is_of_kind(AbreParentese) {
+            return Err(self.generate_error_with_token("ERR-SYN-FUNC-CALL-MISSING-PAREN-OPEN", &paren_open));
+        }
+        func_call.append_child(CstNode::new_terminal(paren_open));
+
+        if !self.peek_current().is_of_kind(FechaParentese) {
+            func_call.append_child(self.parse_expr()?);
+
+            while self.peek_current().is_of_kind(Virgula) {
+                let comma = self.expect_token(|| func_call.get_last_token())?;
+                func_call.append_child(CstNode::new_terminal(comma));
+                func_call.append_child(self.parse_expr()?);
+            }
+        }
+
+        let paren_close = self.expect_token(|| func_call.get_last_token())?;
+        if !paren_close.is_of_kind(FechaParentese) {
+            return Err(self.generate_error_with_token("ERR-SYN-FUNC-CALL-MISSING-PAREN-CLOSE", &paren_close));
+        }
+        func_call.append_child(CstNode::new_terminal(paren_close));
+
+        Ok(func_call)
     }
 }
