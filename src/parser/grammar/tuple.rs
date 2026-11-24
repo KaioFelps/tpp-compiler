@@ -1,29 +1,41 @@
-use itertools::Either::{Left, Right};
+use itertools::Either::{self, Left, Right};
 
+use crate::errors::TppCompilerError;
 use crate::parser::Parser;
 use crate::parser::cst::CstNode;
-use crate::parser::grammar::{GrammarInnerParseFailable, NonTerminal};
-use crate::token::IntoKind;
-use crate::token::TokenKind::Virgula;
+use crate::parser::grammar::NonTerminal;
+use crate::token::CanBeOfKind;
+use crate::token::TokenKind::{FechaParentese, Virgula};
 
 impl<'this> Parser<'this> {
-    pub(super) fn inner_parse_as_tuple(&mut self, expr_node: CstNode<'this>) -> GrammarInnerParseFailable<'this> {
-        let mut tuple_node = CstNode::new_non_terminal(NonTerminal::Tuple);
-
-        let is_tuple = self.peek_current().into_kind().is_some_and(|kind| kind == Virgula);
-        if !is_tuple {
-            return Ok(Right(expr_node));
+    pub(super) fn inner_parse_as_tuple(
+        &mut self,
+        paren_open: CstNode<'this>,
+        expr_node: CstNode<'this>,
+    ) -> Result<Either<CstNode<'this>, (CstNode<'this>, CstNode<'this>)>, TppCompilerError> {
+        if !self.peek_current().is_of_kind(Virgula) {
+            return Ok(Right((paren_open, expr_node)));
         }
 
-        let comma = CstNode::new_terminal(self.expect_token(|| expr_node.get_token())?);
+        let mut tuple_node = CstNode::new_non_terminal(NonTerminal::Tuple);
+        tuple_node.append_child(paren_open);
         tuple_node.append_child(expr_node);
-        tuple_node.append_child(comma);
 
-        while self.lookahead_is_unary_expr() {
-            tuple_node.append_child(self.parse_expr()?);
+        loop {
             let comma = CstNode::new_terminal(self.expect_token(|| tuple_node.get_last_token())?);
             tuple_node.append_child(comma);
+            tuple_node.append_child(self.parse_expr()?);
+
+            if !self.peek_current().is_of_kind(Virgula) {
+                break;
+            }
         }
+
+        let paren_close_token = self.expect_token(|| tuple_node.get_last_token())?;
+        if *paren_close_token.kind() != FechaParentese {
+            return Err(self.generate_error_with_token("ERR-SYN-TUPLE-MISSING-PAREN-CLOSE", &paren_close_token));
+        }
+        tuple_node.append_child(CstNode::new_terminal(paren_close_token));
 
         Ok(Left(tuple_node))
     }

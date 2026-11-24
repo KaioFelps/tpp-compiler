@@ -12,13 +12,14 @@ impl<'this> Parser<'this> {
 
         if self.peek_current().is_of_kind(AbreParentese) {
             let paren_open = CstNode::new_terminal(self.expect_token(|| factor.get_last_token())?);
-            factor.append_child(paren_open);
-
             let expr = self.parse_expr()?;
 
-            match self.inner_parse_as_tuple(expr)? {
+            match self.inner_parse_as_tuple(paren_open, expr)? {
                 Left(tuple) => factor.append_child(tuple),
-                Right(expr) => factor.append_child(expr),
+                Right((paren_open, expr)) => {
+                    factor.append_child(paren_open);
+                    factor.append_child(expr);
+                }
             };
 
             let paren_close_token = self.expect_token(|| factor.get_last_token())?;
