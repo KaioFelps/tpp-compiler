@@ -178,3 +178,28 @@ impl<'t> IntoKind for Option<&Token<'t>> {
         self.map(|token| token.kind.clone())
     }
 }
+
+pub(super) trait CanBeOfKind {
+    fn is_of_kind(&self, kind: TokenKind) -> bool;
+    fn is_any_of_kinds(&self, kinds: &[TokenKind]) -> bool;
+}
+
+impl<T: IntoKind> CanBeOfKind for T {
+    fn is_of_kind(&self, kind: TokenKind) -> bool {
+        self.into_kind().is_some_and(|actual_kind| actual_kind == kind)
+    }
+
+    fn is_any_of_kinds(&self, kinds: &[TokenKind]) -> bool {
+        self.into_kind().is_some_and(|actual_kind| kinds.contains(&actual_kind))
+    }
+}
+
+impl<'t> CanBeOfKind for Token<'t> {
+    fn is_of_kind(&self, kind: TokenKind) -> bool {
+        self.kind == kind
+    }
+
+    fn is_any_of_kinds(&self, kinds: &[TokenKind]) -> bool {
+        kinds.contains(&self.kind)
+    }
+}
