@@ -1,9 +1,11 @@
 use std::collections::VecDeque;
 
-use crate::{errors::TppCompilerError, parser::cst::CstNode, token::Token};
+use crate::{errors::TppCompilerError, token::Token};
 
 mod cst;
 mod grammar;
+
+pub use cst::*;
 
 pub struct Parser<'this> {
     tokens: VecDeque<Token<'this>>,
