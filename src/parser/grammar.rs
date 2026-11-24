@@ -6,6 +6,7 @@ mod block;
 mod declaration;
 mod expression;
 mod function;
+mod operator;
 mod program;
 mod r#type;
 mod var;
@@ -17,6 +18,11 @@ mod var;
 ///
 /// For internal methods, see [`GrammarInnerParseFailable`].
 pub type GrammarFinalParseResult<'t> = Result<CstNode<'t>, TppCompilerError>;
+
+/// The return type of a final grammar parsing method that performs a lookahead peek
+/// to check whether it can actually generate the resulting [`CstNode`] and early-returns
+/// `None` if not.
+pub type GrammarFinalParseResultWithLookahead<'t> = Result<Option<CstNode<'t>>, TppCompilerError>;
 
 /// The return type of inner grammar parsing methods.
 /// This monad allows chaining multiple inner parsing methods until one of them matches.
@@ -73,6 +79,7 @@ pub enum NonTerminal {
     ProductExpr,
     UnaryExpr,
     RelationalOperator,
+    LogicalOperator,
     SumOperator,
     NotOperator,
     ProductOperator,
