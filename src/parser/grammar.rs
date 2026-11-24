@@ -2,6 +2,7 @@ use itertools::Either;
 
 use crate::{errors::TppCompilerError, parser::cst::CstNode};
 
+mod action;
 mod array;
 mod block;
 mod declaration;
