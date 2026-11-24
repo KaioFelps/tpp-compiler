@@ -2,7 +2,10 @@
 //! This module contains the structs and other artifacts needed to produce
 //! an concrete syntax tree (CST) from [`Token`]s and [`TokenKind`]s.
 
-use crate::{parser::grammar::NonTerminal, token::Token};
+use crate::{
+    parser::grammar::NonTerminal,
+    token::{CanBeOfKind, Token, TokenKind},
+};
 
 #[derive(Debug)]
 pub enum CstNodeKind<'this> {
@@ -51,8 +54,13 @@ impl<'this> CstNode<'this> {
 
     /// Gets the rightmost token of its children or its own token if it has no children (i.e., it's a terminal).
     /// When being used to accuse an unexpected EOF error, the returned token is the closest token to the EOF.
+    ///
+    /// ## Note
+    /// This method ignores nodes whose token's kind is [`TokenKind::FimDeSentenca`], since these tokens are
+    /// virtual and thus are not visible in the actual source code.
     pub fn get_last_token(&self) -> Option<&Token<'this>> {
         match &self.kind {
+            CstNodeKind::Terminal(token) if token.is_of_kind(TokenKind::FimDeSentenca) => None,
             CstNodeKind::Terminal(token) => Some(token),
             CstNodeKind::NonTerminal(_) => self.children.iter().rev().find_map(Self::get_last_token),
         }
