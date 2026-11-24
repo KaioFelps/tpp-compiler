@@ -1,7 +1,7 @@
 use crate::parser::Parser;
 use crate::parser::cst::CstNode;
 use crate::parser::grammar::{GrammarFinalParseResult, NonTerminal};
-use crate::token::{IntoKind, TokenKind};
+use crate::token::{CanBeOfKind, IntoKind, TokenKind};
 
 impl<'this> Parser<'this> {
     pub(super) fn parse_expr_list(&mut self) -> GrammarFinalParseResult<'this> {
@@ -61,6 +61,25 @@ impl<'this> Parser<'this> {
         }
 
         Ok(multiplicative_expr_node)
+    }
+
+    pub(super) fn lookahead_is_unary_expr(&self) -> bool {
+        // First(expressao_unaria) = First(fator) ⋃ First(operador_soma) ⋃ First(operador_negacao)
+        //                         = ({ ABRE_PARENTESE, ID } ⋃ First(numero) ⋃ First(inicializacao_arranjo)) ⋃ { MAIS, MENOS } ⋃ { NAO }
+        //                         = { ABRE_PARENTESE, ID } ⋃ { NUM_INTEIRO, NUM_PONTO_FLUTUANTE, NUM_NOTACAO_CIENTIFICA } ⋃ { ABRE_CHAVE } ⋃ { MAIS, MENOS } ⋃ { NAO }
+        //                         = { ABRE_PARENTESE, ID, NUM_INTEIRO, NUM_PONTO_FLUTUANTE, NUM_NOTACAO_CIENTIFICA, ABRE_CHAVE, MAIS, MENOS, NAO }
+
+        self.peek_current().is_any_of_kinds(&[
+            TokenKind::AbreParentese,
+            TokenKind::Ident,
+            TokenKind::NumInteiro,
+            TokenKind::NumPontoFlutuante,
+            TokenKind::NumNotacaoCientifica,
+            TokenKind::AbreChave,
+            TokenKind::Mais,
+            TokenKind::Menos,
+            TokenKind::Nao,
+        ])
     }
 
     fn parse_unary_expr(&mut self) -> GrammarFinalParseResult<'this> {
