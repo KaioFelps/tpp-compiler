@@ -9,7 +9,7 @@ impl<'this> Parser<'this> {
     pub(super) fn parse_declaration(&mut self) -> GrammarFinalParseResult<'this> {
         let mut decl_node = CstNode::new_non_terminal(NonTerminal::Declaration);
 
-        if let Some(type_node) = self.try_parse_type()? {
+        if let Some(type_node) = self.maybe_parse_type()? {
             if let Left(inner_decl_node) = self
                 .inner_parse_var_decl(type_node)
                 .on_right_try(|type_node| self.inner_parse_func_decl_with_return_type(type_node))?

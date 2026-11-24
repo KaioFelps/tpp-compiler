@@ -24,7 +24,7 @@ impl<'this> Parser<'this> {
         return_type_node.append_child(paren_open_node);
 
         loop {
-            let type_node = match self.try_parse_type()? {
+            let type_node = match self.maybe_parse_type()? {
                 Some(token) => token,
                 None => {
                     return if let Some(token) = self.peek_current() {
@@ -178,7 +178,7 @@ impl<'this> Parser<'this> {
     fn parse_func_parameter(&mut self) -> GrammarFinalParseResult<'this> {
         const FUNC_PARAMS_DEFAULT_ERROR_KEY: &str = "ERR-SYN-PARAMETRO";
 
-        let type_node = match self.try_parse_type()? {
+        let type_node = match self.maybe_parse_type()? {
             Some(node) => node,
             None => return Err(self.generate_error_with_token_opt(FUNC_PARAMS_DEFAULT_ERROR_KEY, self.peek_current())),
         };

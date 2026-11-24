@@ -1,8 +1,7 @@
-use crate::{
-    errors::TppCompilerError,
-    parser::{Parser, cst::CstNode, grammar::NonTerminal},
-    token::TokenKind,
-};
+use crate::Parser;
+use crate::parser::cst::CstNode;
+use crate::parser::grammar::{GrammarFinalParseResultWithLookahead, NonTerminal};
+use crate::token::TokenKind;
 
 impl<'this> Parser<'this> {
     /// Tries to parse `token` as a type.
@@ -10,7 +9,7 @@ impl<'this> Parser<'this> {
     ///
     /// ## Errors
     /// It only fails if there is no current token on the queue.
-    pub(super) fn try_parse_type(&mut self) -> Result<Option<CstNode<'this>>, TppCompilerError> {
+    pub(super) fn maybe_parse_type(&mut self) -> GrammarFinalParseResultWithLookahead<'this> {
         if self
             .peek_current()
             .is_some_and(|token| matches!(*token.kind(), TokenKind::Inteiro | TokenKind::Flutuante))
