@@ -72,7 +72,7 @@ pub enum NonTerminal {
     Block,
     Action,
     If,
-    Repeat,
+    Loop,
     TargetList,
     ExprList,
     Read,

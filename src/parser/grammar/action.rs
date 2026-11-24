@@ -93,7 +93,28 @@ impl<'this> Parser<'this> {
     }
 
     fn maybe_parse_repita(&mut self) -> GrammarFinalParseResultWithLookahead<'this> {
-        todo!()
+        let is_repeat = self.peek_current().is_of_kind(TokenKind::Repita);
+        if !is_repeat {
+            return Ok(None);
+        }
+
+        let mut repeat = CstNode::new_non_terminal(NonTerminal::Loop);
+        let repeat_term_node = CstNode::new_terminal(self.expect_token(|| None)?);
+        repeat.append_child(repeat_term_node);
+
+        repeat.append_child(self.parse_block()?);
+
+        let until = self.expect_token(|| repeat.get_last_token())?;
+        if !until.is_of_kind(TokenKind::Ate) {
+            const ERROR_KEY: &str = "ERR-SYN-REPEAT-MISSING-STOP-CLAUSE";
+            return Err(self.generate_error_with_ctx_token(ERROR_KEY, &until, repeat.get_last_token()));
+        }
+        let until = CstNode::new_terminal(until);
+        repeat.append_child(until);
+
+        repeat.append_child(self.parse_expr()?);
+
+        Ok(Some(repeat))
     }
 
     fn maybe_parse_leia(&mut self) -> GrammarFinalParseResultWithLookahead<'this> {
