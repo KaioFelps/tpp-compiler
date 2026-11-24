@@ -7,11 +7,7 @@ use itertools::Either::{Left, Right};
 
 impl<'this> Parser<'this> {
     pub(super) fn inner_parse_var_decl(&mut self, type_node: CstNode<'this>) -> GrammarInnerParseFailable<'this> {
-        let aint_var_decl = self
-            .peek_current()
-            .into_kind()
-            .is_none_or(|kind| kind != TokenKind::DoisPontos);
-        if aint_var_decl {
+        if !self.peek_current().is_of_kind(TokenKind::DoisPontos) {
             return Ok(Right(type_node));
         }
 
