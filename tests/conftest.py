@@ -19,7 +19,7 @@ def pytest_addoption(parser):
         "--parser",
         action="store",
         default="yacc",
-        choices=["all", "yacc", "topdown"],
+        choices=["all", "yacc", "topdown", "rust"],
         help="Especifica qual parser testar: yacc, topdown ou all (padrão: yacc)",
     )
 
