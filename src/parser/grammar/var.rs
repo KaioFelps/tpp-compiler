@@ -1,8 +1,10 @@
 use crate::errors::TppCompilerError;
 use crate::parser::Parser;
 use crate::parser::cst::CstNode;
-use crate::parser::grammar::{GrammarFinalParseResult, GrammarInnerParseFailable, NonTerminal};
-use crate::token::{IntoKind, TokenKind};
+use crate::parser::grammar::{
+    GrammarFinalParseResult, GrammarFinalParseResultWithLookahead, GrammarInnerParseFailable, NonTerminal,
+};
+use crate::token::{CanBeOfKind as _, IntoKind, TokenKind};
 use itertools::Either::{Left, Right};
 
 impl<'this> Parser<'this> {
@@ -176,7 +178,7 @@ impl<'this> Parser<'this> {
             Right(ident_node) => {
                 return Err(self.generate_error_with_token_opt(
                     "ERR-SYN-VARS-INITIALIZATION-INVALID-TARGET-LIST",
-                    ident_node.get_token(),
+                    ident_node.get_last_token(),
                 ));
             }
         };
@@ -213,5 +215,63 @@ impl<'this> Parser<'this> {
         };
 
         Ok(CstNode::new_terminal(attribution_token))
+    }
+
+    /// Checks whether a variable attribution can be parsed (and parses it if so).
+    ///
+    /// ## Note
+    /// An attribution can be either `expression ATTRIBUTION ...` or `expr_list ATTRIBUTION` string (since `expr_list -> expression`).
+    /// Hence, we check if it's an expression by checking whether there is an [`TokenKind::Atribuicao`] or if it's an "expr_list" by
+    /// checking that there is a comma ([`TokenKind::Virgula`]). In both cases, it **must** be an attribution. Otherwise it **cannot** be a var attribution
+    pub(super) fn inner_parse_var_attribution(
+        &mut self,
+        expr_node: CstNode<'this>,
+    ) -> GrammarInnerParseFailable<'this> {
+        let is_var_attribution = self
+            .peek_current()
+            .is_any_of_kinds(&[TokenKind::Virgula, TokenKind::Atribuicao]);
+
+        if !is_var_attribution {
+            return Ok(Right(expr_node));
+        }
+
+        let mut var_attribution = CstNode::new_non_terminal(NonTerminal::Attribution);
+
+        let expr_list = self.inner_parse_expr_list(expr_node)?;
+        var_attribution.append_child(expr_list);
+
+        // an attribution **must** have at least one attribution, and it can actually have more than one
+        // e.g.: `a := b := 10 * c`
+        // this ensures that the loop below will run at least once
+        let has_at_least_one_attribution = self.peek_current().is_of_kind(TokenKind::Atribuicao);
+        if !has_at_least_one_attribution {
+            const ERROR_KEY: &str = "ERR-SYN-VAR-ATTRIBUTION-MISSING-ATTRIBUTION";
+            return Err(self.generate_error_with_token_opt(ERROR_KEY, self.peek_current()));
+        }
+
+        while self.peek_current().is_of_kind(TokenKind::Atribuicao) {
+            let attribution_token = self.expect_token(|| var_attribution.get_last_token())?;
+            let attribution_terminal = CstNode::new_terminal(attribution_token);
+            var_attribution.append_child(attribution_terminal);
+
+            var_attribution.append_child(self.parse_expr_list()?);
+        }
+
+        Ok(Left(var_attribution))
+    }
+
+    pub(super) fn maybe_parse_var_decl(&mut self) -> GrammarFinalParseResultWithLookahead<'this> {
+        let type_node = match self.maybe_parse_type()? {
+            Some(type_node) => type_node,
+            None => return Ok(None),
+        };
+
+        match self.inner_parse_var_decl(type_node)? {
+            Left(var_decl) => Ok(Some(var_decl)),
+            Right(type_node) => {
+                const ERROR_KEY: &str = "ERR-SYN-ACTION-INVALID-VAR-DECL";
+                Err(self.generate_error_with_token_opt(ERROR_KEY, type_node.get_last_token()))
+            }
+        }
     }
 }
