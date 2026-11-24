@@ -4,7 +4,7 @@ use crate::parser::grammar::{GrammarFinalParseResultWithLookahead, NonTerminal};
 use crate::token::{CanBeOfKind, TokenKind};
 
 impl<'this> Parser<'this> {
-    pub fn maybe_parse_number(&mut self) -> GrammarFinalParseResultWithLookahead<'this> {
+    pub(super) fn maybe_parse_number(&mut self) -> GrammarFinalParseResultWithLookahead<'this> {
         if self.peek_current().is_any_of_kinds(&[
             TokenKind::NumInteiro,
             TokenKind::NumPontoFlutuante,
