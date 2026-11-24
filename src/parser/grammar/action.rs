@@ -3,8 +3,8 @@ use itertools::Either::{Left, Right};
 use crate::parser::Parser;
 use crate::parser::cst::CstNode;
 use crate::parser::grammar::{GrammarFinalParseResult, GrammarFinalParseResultWithLookahead, NonTerminal};
-use crate::token::CanBeOfKind;
 use crate::token::TokenKind::{Escreva, Flutuante, Inteiro, Leia, Repita, Retorna, Se};
+use crate::token::{CanBeOfKind, TokenKind};
 
 impl<'this> Parser<'this> {
     pub(super) fn maybe_parse_action(&mut self) -> GrammarFinalParseResultWithLookahead<'this> {
@@ -50,7 +50,46 @@ impl<'this> Parser<'this> {
     }
 
     fn maybe_parse_se(&mut self) -> GrammarFinalParseResultWithLookahead<'this> {
-        todo!()
+        if !self.peek_current().is_of_kind(TokenKind::Se) {
+            return Ok(None);
+        }
+
+        let mut if_node = CstNode::new_non_terminal(NonTerminal::If);
+
+        let if_token = CstNode::new_terminal(self.expect_token(|| None)?);
+        if_node.append_child(if_token);
+
+        let expr = self.parse_expr()?;
+        if_node.append_child(expr);
+
+        let else_token = self.expect_token(|| if_node.get_last_token())?;
+        if !else_token.is_of_kind(TokenKind::Entao) {
+            return Err(self.generate_error_with_ctx_token(
+                "ERR-SYN-IF-MISSING-THEN",
+                &else_token,
+                if_node.get_last_token(),
+            ));
+        }
+        if_node.append_child(CstNode::new_terminal(else_token));
+
+        let block = self.parse_block()?;
+        if_node.append_child(block);
+
+        if self.peek_current().is_of_kind(TokenKind::Senao) {
+            let else_node = CstNode::new_terminal(self.expect_token(|| if_node.get_last_token())?);
+            let block = self.parse_block()?;
+            if_node.append_child(else_node);
+            if_node.append_child(block);
+        }
+
+        let end = self.expect_token(|| if_node.get_last_token())?;
+        if !end.is_of_kind(TokenKind::Fim) {
+            return Err(self.generate_error_with_ctx_token("ERR-SYN-IF-MISSING-END", &end, if_node.get_last_token()));
+        }
+        let end = CstNode::new_terminal(end);
+        if_node.append_child(end);
+
+        Ok(Some(if_node))
     }
 
     fn maybe_parse_repita(&mut self) -> GrammarFinalParseResultWithLookahead<'this> {
