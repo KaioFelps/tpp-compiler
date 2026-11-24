@@ -19,15 +19,6 @@ impl<'this> Parser<'this> {
         self.inner_parse_func_header(ident_node)
     }
 
-    pub(super) fn parse_return_types(&mut self) -> GrammarFinalParseResult<'this> {
-        let token = self.expect_token(|| None)?;
-        if *token.kind() != TokenKind::AbreParentese {
-            return Err(self.generate_error_with_token("ERR-SYN-MULTIPLE-RETURN-TYPES-MISSING-PAREN-OPEN", &token));
-        }
-        let paren_open_node = CstNode::new_terminal(token);
-        self.inner_parse_return_types(paren_open_node)
-    }
-
     fn inner_parse_return_types(&mut self, paren_open_node: CstNode<'this>) -> GrammarFinalParseResult<'this> {
         let mut return_type_node = CstNode::new_non_terminal(NonTerminal::ReturnType);
         return_type_node.append_child(paren_open_node);
