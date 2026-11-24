@@ -55,7 +55,11 @@ static ERROR_MESSAGES: LazyLock<HashMap<ErrorMessagesSection, HashMap<&'static s
     LazyLock::new(|| {
         ERROR_MESSAGES_DESCRIPTORS
             .into_iter()
-            .map(|config| Ini::new_cs().read(config.to_string()))
+            .map(|config| {
+                let mut ini = Ini::new_cs();
+                ini.set_multiline(true);
+                ini.read(config.to_string())
+            })
             .filter_map(|res| match res {
                 Ok(res) => Some(res),
                 Err(err) => {
