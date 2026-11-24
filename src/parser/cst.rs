@@ -45,10 +45,6 @@ impl<'this> CstNode<'this> {
         }
     }
 
-    pub fn has_children(&self) -> bool {
-        !self.children.is_empty()
-    }
-
     pub fn append_child(&mut self, node: CstNode<'this>) {
         self.children.push(node);
     }
@@ -65,9 +61,5 @@ impl<'this> CstNode<'this> {
     pub fn with_child(mut self, node: CstNode<'this>) -> Self {
         self.children.push(node);
         self
-    }
-
-    pub fn kind(&self) -> &CstNodeKind {
-        &self.kind
     }
 }
