@@ -89,7 +89,7 @@ pub enum NonTerminal {
     ProductOperator,
     Factor,
     Tuple,
-    VecInitialization,
+    ArrInitialization,
     Number,
     FuncCall,
 }
