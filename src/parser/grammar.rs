@@ -2,13 +2,16 @@ use itertools::Either;
 
 use crate::{errors::TppCompilerError, parser::cst::CstNode};
 
+mod array;
 mod block;
 mod declaration;
 mod expression;
 mod factor;
 mod function;
+mod number;
 mod operator;
 mod program;
+mod tuple;
 mod r#type;
 mod var;
 
