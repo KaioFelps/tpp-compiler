@@ -2,7 +2,7 @@ use configparser::ini::Ini;
 use log::warn;
 use std::{collections::HashMap, fmt::Display, ops::Deref, sync::LazyLock};
 
-use crate::token::OwnedToken;
+use crate::token::{OwnedToken, TokenKind};
 
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum ErrorMessagesSection {
@@ -131,14 +131,6 @@ struct TppCompilerErrorInner {
 pub struct TppCompilerError(Box<TppCompilerErrorInner>);
 
 impl TppCompilerError {
-    pub fn new<T: ToString>(kind: ErrorKind, key: T, force_key: bool) -> Self {
-        Self(Box::new(TppCompilerErrorInner {
-            kind,
-            key: key.to_string(),
-            force_key,
-        }))
-    }
-
     pub fn new_global<T: ToString>(key: T, force_key: bool, file: Option<String>) -> Self {
         Self(Box::new(TppCompilerErrorInner {
             key: key.to_string(),
@@ -236,7 +228,7 @@ impl Display for TppCompilerError {
                     content = content
                         .replace("{tok}", &format!("{token:?}"))
                         .replace("{tok:kind}", &token.kind.to_string())
-                        .replace("{tok:value}", &token.value)
+                        .replace("{tok:value}", pretty_end_of_statement_value(token))
                         .replace("{tok:line}", &token.line_number.to_string())
                         .replace("{tok:col}", &token.col_number.to_string());
                 }
@@ -245,7 +237,7 @@ impl Display for TppCompilerError {
                     content = content
                         .replace("{extra_tok}", &format!("{token:?}"))
                         .replace("{extra_tok:kind}", &token.kind.to_string())
-                        .replace("{extra_tok:value}", &token.value)
+                        .replace("{extra_tok:value}", pretty_end_of_statement_value(token))
                         .replace("{extra_tok:line}", &token.line_number.to_string())
                         .replace("{extra_tok:col}", &token.col_number.to_string());
                 }
@@ -266,6 +258,14 @@ impl Display for TppCompilerError {
 
         write!(f, "{content}")
     }
+}
+
+fn pretty_end_of_statement_value(token: &OwnedToken) -> &str {
+    if token.kind == TokenKind::FimDeSentenca {
+        return "<MARCADOR DE FIM DE SENTENÇA>";
+    }
+
+    token.value.as_str()
 }
 
 impl std::error::Error for TppCompilerError {
