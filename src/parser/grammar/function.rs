@@ -249,4 +249,8 @@ impl<'this> Parser<'this> {
 
         Ok(Left(func_decl_node))
     }
+
+    pub(super) fn inner_parse_as_func_call(&mut self, ident_node: CstNode<'this>) -> GrammarFinalParseResult<'this> {
+        todo!()
+    }
 }
