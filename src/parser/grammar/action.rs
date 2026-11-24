@@ -118,14 +118,86 @@ impl<'this> Parser<'this> {
     }
 
     fn maybe_parse_leia(&mut self) -> GrammarFinalParseResultWithLookahead<'this> {
-        todo!()
+        let is_read_stmt = self.peek_current().is_of_kind(TokenKind::Leia);
+        if !is_read_stmt {
+            return Ok(None);
+        }
+
+        let mut read_cmd = CstNode::new_non_terminal(NonTerminal::Read);
+        let read_term_node = CstNode::new_terminal(self.expect_token(|| None)?);
+        read_cmd.append_child(read_term_node);
+
+        let paren_open = self.expect_token(|| read_cmd.get_last_token())?;
+        if !paren_open.is_of_kind(TokenKind::AbreParentese) {
+            const ERROR_KEY: &str = "ERR-SYN-LEIA-MISSING-PAREN-OPEN";
+            return Err(self.generate_error_with_ctx_token(ERROR_KEY, &paren_open, read_cmd.get_last_token()));
+        }
+        read_cmd.append_child(CstNode::new_terminal(paren_open));
+        read_cmd.append_child(self.parse_var()?);
+
+        let paren_close = self.expect_token(|| read_cmd.get_last_token())?;
+        if !paren_close.is_of_kind(TokenKind::FechaParentese) {
+            const ERROR_KEY: &str = "ERR-SYN-LEIA-MISSING-PAREN-CLOSE";
+            return Err(self.generate_error_with_ctx_token(ERROR_KEY, &paren_close, read_cmd.get_last_token()));
+        }
+        read_cmd.append_child(CstNode::new_terminal(paren_close));
+
+        Ok(Some(read_cmd))
     }
 
     fn maybe_parse_escreva(&mut self) -> GrammarFinalParseResultWithLookahead<'this> {
-        todo!()
+        let is_write_stmt = self.peek_current().is_of_kind(TokenKind::Escreva);
+        if !is_write_stmt {
+            return Ok(None);
+        }
+
+        let mut write_cmd = CstNode::new_non_terminal(NonTerminal::Write);
+        let write_term_node = CstNode::new_terminal(self.expect_token(|| None)?);
+        write_cmd.append_child(write_term_node);
+
+        let paren_open = self.expect_token(|| write_cmd.get_last_token())?;
+        if !paren_open.is_of_kind(TokenKind::AbreParentese) {
+            const ERROR_KEY: &str = "ERR-SYN-ESCREVA-MISSING-PAREN-OPEN";
+            return Err(self.generate_error_with_ctx_token(ERROR_KEY, &paren_open, write_cmd.get_last_token()));
+        }
+        write_cmd.append_child(CstNode::new_terminal(paren_open));
+        write_cmd.append_child(self.parse_expr()?);
+
+        let paren_close = self.expect_token(|| write_cmd.get_last_token())?;
+        if !paren_close.is_of_kind(TokenKind::FechaParentese) {
+            const ERROR_KEY: &str = "ERR-SYN-ESCREVA-MISSING-PAREN-CLOSE";
+            return Err(self.generate_error_with_ctx_token(ERROR_KEY, &paren_close, write_cmd.get_last_token()));
+        }
+        write_cmd.append_child(CstNode::new_terminal(paren_close));
+
+        Ok(Some(write_cmd))
     }
 
     fn maybe_parse_retorna(&mut self) -> GrammarFinalParseResultWithLookahead<'this> {
-        todo!()
+        let is_return_stmt = self.peek_current().is_of_kind(TokenKind::Retorna);
+        if !is_return_stmt {
+            return Ok(None);
+        }
+
+        let mut return_cmd = CstNode::new_non_terminal(NonTerminal::Return);
+        let return_term_node = CstNode::new_terminal(self.expect_token(|| None)?);
+        return_cmd.append_child(return_term_node);
+
+        let paren_open = self.expect_token(|| return_cmd.get_last_token())?;
+        if !paren_open.is_of_kind(TokenKind::AbreParentese) {
+            const ERROR_KEY: &str = "ERR-SYN-RETORNA-MISSING-PAREN-OPEN";
+            return Err(self.generate_error_with_ctx_token(ERROR_KEY, &paren_open, return_cmd.get_last_token()));
+        }
+        return_cmd.append_child(CstNode::new_terminal(paren_open));
+        return_cmd.append_child(self.parse_expr_list()?);
+
+        let paren_close = self.expect_token(|| return_cmd.get_last_token())?;
+        if !paren_close.is_of_kind(TokenKind::FechaParentese) {
+            const ERROR_KEY: &str = "ERR-SYN-RETORNA-MISSING-PAREN-CLOSE";
+            return Err(self.generate_error_with_ctx_token(ERROR_KEY, &paren_close, return_cmd.get_last_token()));
+        }
+        return_cmd.append_child(CstNode::new_terminal(paren_close));
+
+        Ok(Some(return_cmd))
     }
 }
