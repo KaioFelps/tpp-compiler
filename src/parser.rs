@@ -92,10 +92,20 @@ impl<'this> Parser<'this> {
         self.tokens.get(1)
     }
 
-    fn expect_token(&mut self, nearest_token: Option<&Token<'_>>) -> Result<Token<'this>, TppCompilerError> {
+    /// Expects that the current token is `Some(token)` and returns either
+    /// the token or an error of unexpected EOF.
+    ///
+    /// ## Note
+    /// This method lazily executes `nearest_token_fn`, hence you can use
+    /// expensive callbacks since they're being called only upon an error.
+    fn expect_token<'a, F>(&mut self, nearest_token_fn: F) -> Result<Token<'this>, TppCompilerError>
+    where
+        F: FnOnce() -> Option<&'a Token<'this>>,
+        'this: 'a,
+    {
         match self.take_current() {
             Some(token) => Ok(token),
-            None => Err(self.generate_eof_error(nearest_token)),
+            None => Err(self.generate_eof_error(nearest_token_fn())),
         }
     }
 }

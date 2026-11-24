@@ -23,7 +23,7 @@ impl<'this> Parser<'this> {
 
         // as this is a final grammar parse step, we can directly take it
         // because it always return an error and no rule can parse this token beyond this one
-        let token = self.expect_token(decl_node.get_last_token())?;
+        let token = self.expect_token(|| decl_node.get_last_token())?;
         let kind = token.kind().clone();
         let first_child_node = CstNode::new_terminal(token);
 
