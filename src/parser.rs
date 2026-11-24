@@ -43,14 +43,14 @@ impl<'this> Parser<'this> {
         &self,
         key: &str,
         current_token: &Token<'this>,
-        extra_token: &Token<'this>,
+        extra_token: Option<&Token<'this>>,
     ) -> TppCompilerError {
         TppCompilerError::new_parser(
             key,
             self.force_error_key,
             self.file.to_string(),
             Some(current_token.make_owned()),
-            Some(extra_token.make_owned()),
+            extra_token.map(Token::make_owned),
         )
     }
 
@@ -88,10 +88,6 @@ impl<'this> Parser<'this> {
 
     fn peek_current(&self) -> Option<&Token<'this>> {
         self.tokens.front()
-    }
-
-    fn peek_next(&self) -> Option<&Token<'this>> {
-        self.tokens.get(1)
     }
 
     /// Expects that the current token is `Some(token)` and returns either
