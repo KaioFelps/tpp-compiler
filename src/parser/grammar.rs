@@ -5,6 +5,7 @@ use crate::{errors::TppCompilerError, parser::cst::CstNode};
 mod block;
 mod declaration;
 mod expression;
+mod factor;
 mod function;
 mod operator;
 mod program;

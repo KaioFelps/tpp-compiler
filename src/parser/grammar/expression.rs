@@ -78,10 +78,6 @@ impl<'this> Parser<'this> {
         Ok(unary_node)
     }
 
-    fn parse_factor(&mut self) -> GrammarFinalParseResult<'this> {
-        todo!()
-    }
-
     pub(super) fn inner_parse_expr_list(&mut self, expr_node: CstNode<'this>) -> GrammarFinalParseResult<'this> {
         let mut expr_list_node = CstNode::new_non_terminal(super::NonTerminal::ExprList);
         expr_list_node.append_child(expr_node);
