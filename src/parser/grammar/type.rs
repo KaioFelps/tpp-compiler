@@ -10,7 +10,7 @@ impl<'this> Parser<'this> {
     ///
     /// ## Errors
     /// It only fails if there is no current token on the queue.
-    pub(super) fn parse_type(&mut self) -> Result<Option<CstNode<'this>>, TppCompilerError> {
+    pub(super) fn try_parse_type(&mut self) -> Result<Option<CstNode<'this>>, TppCompilerError> {
         if self
             .peek_current()
             .is_some_and(|token| matches!(*token.kind(), TokenKind::Inteiro | TokenKind::Flutuante))
