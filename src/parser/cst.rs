@@ -66,4 +66,9 @@ impl<'this> CstNode<'this> {
             .map(|node| node.get_last_token())
             .unwrap_or_else(|| self.get_token())
     }
+
+    pub fn with_child(mut self, node: CstNode<'this>) -> Self {
+        self.children.push(node);
+        self
+    }
 }
