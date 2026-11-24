@@ -53,22 +53,21 @@ impl<'this> CstNode<'this> {
         self.children.push(node);
     }
 
-    pub fn get_token(&self) -> Option<&Token<'this>> {
+    /// Gets the rightmost token of its children or its own token if it has no children (i.e., it's a terminal).
+    /// When being used to accuse an unexpected EOF error, the returned token is the closest token to the EOF.
+    pub fn get_last_token(&self) -> Option<&Token<'this>> {
         match &self.kind {
             CstNodeKind::Terminal(token) => Some(token),
-            _ => None,
+            CstNodeKind::NonTerminal(_) => self.children.iter().rev().find_map(Self::get_last_token),
         }
-    }
-
-    pub fn get_last_token(&self) -> Option<&Token<'this>> {
-        self.children
-            .last()
-            .map(|node| node.get_last_token())
-            .unwrap_or_else(|| self.get_token())
     }
 
     pub fn with_child(mut self, node: CstNode<'this>) -> Self {
         self.children.push(node);
         self
+    }
+
+    pub fn kind(&self) -> &CstNodeKind {
+        &self.kind
     }
 }
