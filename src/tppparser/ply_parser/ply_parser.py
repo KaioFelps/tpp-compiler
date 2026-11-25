@@ -79,7 +79,8 @@ class PLYParser(BaseParser):
                     UniqueDotExporter(estado.root).to_dotfile(filename + ".unique.ast.dot")
                     with open(filename + "ascii_tree.txt", "w") as f:
                         f.write(RenderTree(estado.root, style=AsciiStyle()).by_attr())
-                except Exception:
+                except Exception as e:
+                    print(f"Erro ao imprimir: {e}")
                     pass
                 print(estado.error_handler.newError(ck, 'WAR-SYN-OUTPUT-FILE', file=filename + ".ast.png", teste='bla'))
             else:
