@@ -305,14 +305,22 @@ impl std::error::Error for TppCompilerError {
 }
 
 #[derive(Debug)]
-pub struct TppCompilerErrorsBag(pub Vec<TppCompilerError>);
+pub struct TppCompilerErrorsBag(pub Vec<TppCompilerError>, bool);
 
 impl TppCompilerErrorsBag {
+    pub fn shall_force_key(&self) -> bool {
+        self.1
+    }
+
     pub fn new() -> Self {
-        Self(Vec::new())
+        Self(Vec::new(), false)
     }
 
     pub fn append_error(&mut self, error: TppCompilerError) {
+        if error.0.force_key {
+            self.1 = true;
+        }
+
         self.0.push(error);
     }
 
@@ -327,7 +335,12 @@ impl fmt::Display for TppCompilerErrorsBag {
             if i > 0 {
                 writeln!(f)?;
             }
-            writeln!(f, "{err}")?;
+
+            if self.shall_force_key() {
+                write!(f, "{err}")?;
+            } else {
+                writeln!(f, "{err}")?;
+            }
         }
         Ok(())
     }
