@@ -1,4 +1,5 @@
 use itertools::Either::{Left, Right};
+use log::debug;
 
 use crate::parser::Parser;
 use crate::parser::cst::CstNode;
@@ -8,6 +9,7 @@ use crate::token::TokenKind::{AbreParentese, FechaParentese, Ident};
 
 impl<'this> Parser<'this> {
     pub(super) fn parse_factor(&mut self) -> GrammarFinalParseResult<'this> {
+        debug!(r#"[Parser] Chamou parse_factor."#);
         let mut factor = CstNode::new_non_terminal(NonTerminal::Factor);
 
         if self.peek_current().is_of_kind(AbreParentese) {

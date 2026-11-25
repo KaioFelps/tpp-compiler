@@ -1,4 +1,5 @@
 use itertools::Either::{Left, Right};
+use log::debug;
 
 use crate::parser::Parser;
 use crate::parser::cst::CstNode;
@@ -8,6 +9,7 @@ use crate::token::{CanBeOfKind, TokenKind};
 
 impl<'this> Parser<'this> {
     pub(super) fn maybe_parse_action(&mut self) -> GrammarFinalParseResultWithLookahead<'this> {
+        debug!(r#"[Parser] Chamou maybe_parse_action."#);
         // First(action)    = First(expressao) ⋃ First(declaracao_variaveis) ⋃ First(se) ⋃ First(repita) ⋃ First(leia) ⋃ First(escreva) ⋃ First(retorna) ⋃ First(erro)
         //                  = First(expressao_unaria) ⋃ First(tipo) ⋃ { SE, REPITA, LEIA, ESCREVA, RETORNA, ERRO }
         //                  = First(expressao_unaria) ⋃ { INTEIRO, Flutuante, SE, REPITA, LEIA, ESCREVA, RETORNA, ERRO } - { ERRO } (* esse erro parece não existir *)
@@ -22,6 +24,7 @@ impl<'this> Parser<'this> {
     }
 
     pub(super) fn parse_action(&mut self) -> GrammarFinalParseResult<'this> {
+        debug!(r#"[Parser] Chamou parse_action."#);
         let mut action = CstNode::new_non_terminal(NonTerminal::Action);
 
         if let Some(simple_action) = self
@@ -50,6 +53,7 @@ impl<'this> Parser<'this> {
     }
 
     fn maybe_parse_se(&mut self) -> GrammarFinalParseResultWithLookahead<'this> {
+        debug!(r#"[Parser] Chamou maybe_parse_se."#);
         if !self.peek_current().is_of_kind(TokenKind::Se) {
             return Ok(None);
         }
@@ -97,6 +101,7 @@ impl<'this> Parser<'this> {
     }
 
     fn maybe_parse_repita(&mut self) -> GrammarFinalParseResultWithLookahead<'this> {
+        debug!(r#"[Parser] Chamou maybe_parse_repita."#);
         let is_repeat = self.peek_current().is_of_kind(TokenKind::Repita);
         if !is_repeat {
             return Ok(None);
@@ -122,6 +127,7 @@ impl<'this> Parser<'this> {
     }
 
     fn maybe_parse_leia(&mut self) -> GrammarFinalParseResultWithLookahead<'this> {
+        debug!(r#"[Parser] Chamou maybe_parse_leia."#);
         let is_read_stmt = self.peek_current().is_of_kind(TokenKind::Leia);
         if !is_read_stmt {
             return Ok(None);
@@ -150,6 +156,7 @@ impl<'this> Parser<'this> {
     }
 
     fn maybe_parse_escreva(&mut self) -> GrammarFinalParseResultWithLookahead<'this> {
+        debug!(r#"[Parser] Chamou maybe_parse_escreva."#);
         let is_write_stmt = self.peek_current().is_of_kind(TokenKind::Escreva);
         if !is_write_stmt {
             return Ok(None);
@@ -178,6 +185,7 @@ impl<'this> Parser<'this> {
     }
 
     fn maybe_parse_retorna(&mut self) -> GrammarFinalParseResultWithLookahead<'this> {
+        debug!(r#"[Parser] Chamou maybe_parse_retorna."#);
         let is_return_stmt = self.peek_current().is_of_kind(TokenKind::Retorna);
         if !is_return_stmt {
             return Ok(None);

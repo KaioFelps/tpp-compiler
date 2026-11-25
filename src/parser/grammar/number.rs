@@ -1,3 +1,5 @@
+use log::debug;
+
 use crate::parser::Parser;
 use crate::parser::cst::CstNode;
 use crate::parser::grammar::{GrammarFinalParseResultWithLookahead, NonTerminal};
@@ -5,6 +7,7 @@ use crate::token::{CanBeOfKind, TokenKind};
 
 impl<'this> Parser<'this> {
     pub(super) fn maybe_parse_number(&mut self) -> GrammarFinalParseResultWithLookahead<'this> {
+        debug!(r#"[Parser] Chamou maybe_parse_number."#);
         if self.peek_current().is_any_of_kinds(&[
             TokenKind::NumInteiro,
             TokenKind::NumPontoFlutuante,

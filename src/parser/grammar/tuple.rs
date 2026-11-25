@@ -1,4 +1,5 @@
 use itertools::Either::{self, Left, Right};
+use log::debug;
 
 use crate::errors::TppCompilerError;
 use crate::parser::Parser;
@@ -13,6 +14,7 @@ impl<'this> Parser<'this> {
         paren_open: CstNode<'this>,
         expr_node: CstNode<'this>,
     ) -> Result<Either<CstNode<'this>, (CstNode<'this>, CstNode<'this>)>, TppCompilerError> {
+        debug!(r#"[Parser] Chamou inner_parse_as_tuple."#);
         if !self.peek_current().is_of_kind(Virgula) {
             return Ok(Right((paren_open, expr_node)));
         }

@@ -1,3 +1,5 @@
+use log::debug;
+
 use crate::Parser;
 use crate::parser::cst::CstNode;
 use crate::parser::grammar::{GrammarFinalParseResultWithLookahead, NonTerminal};
@@ -10,6 +12,7 @@ impl<'this> Parser<'this> {
     /// ## Errors
     /// It only fails if there is no current token on the queue.
     pub(super) fn maybe_parse_type(&mut self) -> GrammarFinalParseResultWithLookahead<'this> {
+        debug!(r#"[Parser] Chamou maybe_parse_type."#);
         if self
             .peek_current()
             .is_some_and(|token| matches!(*token.kind(), TokenKind::Inteiro | TokenKind::Flutuante))

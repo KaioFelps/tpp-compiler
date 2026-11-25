@@ -1,4 +1,5 @@
 use itertools::Either::{Left, Right};
+use log::debug;
 
 use crate::errors::TppCompilerError;
 use crate::parser::Parser;
@@ -11,6 +12,7 @@ impl<'this> Parser<'this> {
     // parse_func_decl removed since it's never referenced, whereas its inner variants.
 
     pub(super) fn parse_func_header(&mut self) -> GrammarFinalParseResult<'this> {
+        debug!(r#"[Parser] Chamou parse_func_header."#);
         const FUNC_HEADER_DEFAULT_ERROR_KEY: &str = "ERR-SYN-CABECALHO";
         let ident_token = self.expect_token(|| None)?;
         if *ident_token.kind() != TokenKind::Ident {
@@ -21,6 +23,7 @@ impl<'this> Parser<'this> {
     }
 
     fn inner_parse_return_types(&mut self, paren_open_node: CstNode<'this>) -> GrammarFinalParseResult<'this> {
+        debug!(r#"[Parser] Chamou inner_parse_return_types."#);
         let mut return_type_node = CstNode::new_non_terminal(NonTerminal::ReturnType);
         return_type_node.append_child(paren_open_node);
 
@@ -67,6 +70,7 @@ impl<'this> Parser<'this> {
         &mut self,
         ident_node: CstNode<'this>,
     ) -> GrammarInnerParseFailable<'this> {
+        debug!(r#"[Parser] Chamou inner_parse_func_decl_without_return_type."#);
         // First(_continue_as_declaracao_funcao_sem_retorno) = First(_continue_as_cabecalho) = { ABRE_PARENTESE }
         let is_func_decl_without_return_type = self
             .peek_current()
@@ -88,6 +92,7 @@ impl<'this> Parser<'this> {
         &mut self,
         type_node: CstNode<'this>,
     ) -> GrammarInnerParseFailable<'this> {
+        debug!(r#"[Parser] Chamou inner_parse_func_decl_with_return_type."#);
         let mut func_decl = CstNode::new_non_terminal(NonTerminal::FuncDeclaration);
         let header = self.parse_func_header()?;
         func_decl.append_child(type_node);
@@ -96,6 +101,7 @@ impl<'this> Parser<'this> {
     }
 
     pub(super) fn inner_parse_func_header(&mut self, ident_node: CstNode<'this>) -> GrammarFinalParseResult<'this> {
+        debug!(r#"[Parser] Chamou inner_parse_func_header."#);
         const FUNC_HEADER_DEFAULT_ERROR_KEY: &str = "ERR-SYN-CABECALHO";
         let mut func_header_node = CstNode::new_non_terminal(NonTerminal::FuncHeader);
         func_header_node.append_child(ident_node);
@@ -140,6 +146,7 @@ impl<'this> Parser<'this> {
     }
 
     fn inner_parse_func_params_vec(&mut self) -> Result<Vec<CstNode<'this>>, TppCompilerError> {
+        debug!(r#"[Parser] Chamou inner_parse_func_params_vec."#);
         const FUNC_PARAMS_DEFAULT_ERROR_KEY: &str = "ERR-SYN-PARAMETRO";
         let mut nodes = Vec::<CstNode<'this>>::new();
         let mut requires_a_new_parameter = false;
@@ -177,6 +184,7 @@ impl<'this> Parser<'this> {
     }
 
     fn parse_func_parameter(&mut self) -> GrammarFinalParseResult<'this> {
+        debug!(r#"[Parser] Chamou parse_func_parameter."#);
         const FUNC_PARAMS_DEFAULT_ERROR_KEY: &str = "ERR-SYN-PARAMETRO";
 
         let type_node = match self.maybe_parse_type()? {
@@ -231,6 +239,7 @@ impl<'this> Parser<'this> {
         &mut self,
         parenthesis_node: CstNode<'this>,
     ) -> GrammarInnerParseFailable<'this> {
+        debug!(r#"[Parser] Chamou inner_parse_func_decl_with_tuple_return_type."#);
         // First(_continue_as_tipos_retorno) = First(tipo) = {Inteiro, Flutuante}
         let is_func_decl_with_multiple_return_types = self
             .peek_current()
@@ -252,6 +261,7 @@ impl<'this> Parser<'this> {
     }
 
     pub(super) fn inner_parse_as_func_call(&mut self, ident_node: CstNode<'this>) -> GrammarFinalParseResult<'this> {
+        debug!(r#"[Parser] Chamou inner_parse_as_func_call."#);
         let mut func_call = CstNode::new_non_terminal(NonTerminal::FuncCall).with_child(ident_node);
 
         let paren_open = self.expect_token(|| func_call.get_last_token())?;

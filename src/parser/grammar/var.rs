@@ -6,9 +6,11 @@ use crate::parser::grammar::{
 };
 use crate::token::{CanBeOfKind as _, IntoKind, TokenKind};
 use itertools::Either::{Left, Right};
+use log::debug;
 
 impl<'this> Parser<'this> {
     pub(super) fn inner_parse_var_decl(&mut self, type_node: CstNode<'this>) -> GrammarInnerParseFailable<'this> {
+        debug!(r#"[Parser] Chamou inner_parse_var_decl."#);
         if !self.peek_current().is_of_kind(TokenKind::DoisPontos) {
             return Ok(Right(type_node));
         }
@@ -27,6 +29,7 @@ impl<'this> Parser<'this> {
     }
 
     pub(super) fn parse_targets_list(&mut self) -> GrammarFinalParseResult<'this> {
+        debug!(r#"[Parser] Chamou parse_targets_list."#);
         let var_node = self.parse_var()?;
         self.inner_parse_targets_list(var_node)?
             .left()
@@ -34,6 +37,7 @@ impl<'this> Parser<'this> {
     }
 
     pub(super) fn inner_parse_targets_list(&mut self, var_node: CstNode<'this>) -> GrammarInnerParseFailable<'this> {
+        debug!(r#"[Parser] Chamou inner_parse_targets_list."#);
         let mut targets_list_node = CstNode::new_non_terminal(NonTerminal::TargetList);
         targets_list_node.append_child(var_node);
 
@@ -66,6 +70,7 @@ impl<'this> Parser<'this> {
     }
 
     pub(super) fn parse_var(&mut self) -> GrammarFinalParseResult<'this> {
+        debug!(r#"[Parser] Chamou parse_var."#);
         let token = self.expect_token(|| None)?;
 
         if *token.kind() != TokenKind::Ident {
@@ -78,6 +83,7 @@ impl<'this> Parser<'this> {
     }
 
     pub(super) fn inner_parse_var(&mut self, ident_node: CstNode<'this>) -> GrammarFinalParseResult<'this> {
+        debug!(r#"[Parser] Chamou inner_parse_var."#);
         let mut var_node = CstNode::new_non_terminal(NonTerminal::Var);
         var_node.append_child(ident_node);
 
@@ -116,6 +122,7 @@ impl<'this> Parser<'this> {
         &mut self,
         parenthesis_node: CstNode<'this>,
     ) -> GrammarInnerParseFailable<'this> {
+        debug!(r#"[Parser] Chamou inner_parse_vars_init_with_parenthesis."#);
         // First(_continue_as_inicializacao_variaveis) = { ID } as per diagram
         let is_vars_init = self
             .peek_current()
@@ -159,6 +166,7 @@ impl<'this> Parser<'this> {
     }
 
     pub(super) fn inner_parse_vars_init(&mut self, ident_node: CstNode<'this>) -> GrammarInnerParseFailable<'this> {
+        debug!(r#"[Parser] Chamou inner_parse_vars_init."#);
         // First(_continue_as_inicializacao_variaveis) = { ABRE_COLCHETE, VIRGULA, ATRIBUICAO }
         let is_vars_init = self.peek_current().into_kind().is_some_and(|kind| {
             matches!(
@@ -196,6 +204,7 @@ impl<'this> Parser<'this> {
     }
 
     fn parse_attribution(&mut self, latest_node: &CstNode<'this>) -> Result<CstNode<'this>, TppCompilerError> {
+        debug!(r#"[Parser] Chamou parse_attribution."#);
         let token = match self.take_current() {
             Some(token) => token,
             None => {
@@ -227,6 +236,7 @@ impl<'this> Parser<'this> {
         &mut self,
         expr_node: CstNode<'this>,
     ) -> GrammarInnerParseFailable<'this> {
+        debug!(r#"[Parser] Chamou inner_parse_var_attribution."#);
         let is_var_attribution = self
             .peek_current()
             .is_any_of_kinds(&[TokenKind::Virgula, TokenKind::Atribuicao]);
@@ -261,6 +271,7 @@ impl<'this> Parser<'this> {
     }
 
     pub(super) fn maybe_parse_var_decl(&mut self) -> GrammarFinalParseResultWithLookahead<'this> {
+        debug!(r#"[Parser] Chamou maybe_parse_var_decl."#);
         let type_node = match self.maybe_parse_type()? {
             Some(type_node) => type_node,
             None => return Ok(None),

@@ -1,3 +1,5 @@
+use log::debug;
+
 use crate::parser::Parser;
 use crate::parser::cst::CstNode;
 use crate::parser::grammar::{GrammarFinalParseResult, NonTerminal};
@@ -5,6 +7,7 @@ use crate::token::{CanBeOfKind, TokenKind};
 
 impl<'this> Parser<'this> {
     pub fn parse_block(&mut self) -> GrammarFinalParseResult<'this> {
+        debug!(r#"[Parser] Chamou parse_block."#);
         // bloco ::= ( acao ( FIM_DE_SENTENCA bloco )? )?
         let mut block = CstNode::new_non_terminal(NonTerminal::Block);
 
@@ -32,17 +35,21 @@ impl<'this> Parser<'this> {
     }
 
     pub(super) fn synchronize_block(&mut self) {
-        while let Some(tok) = self.peek_current() {
+        debug!(r#"[Parser] Chamou synchronize_block."#);
+        while let Some(token) = self.peek_current() {
+            debug!(r#"[Parser] Tentando sincronizar bloco. (Lendo {token:?})"#);
             // consumes/bumps the following tokens until the end of the broken block
-            if tok.is_of_kind(TokenKind::FimDeSentenca) {
+            if token.is_of_kind(TokenKind::FimDeSentenca) {
+                debug!(r#"[Parser] Bumpou {token:?}"#);
                 let _ = self.take_current();
                 break;
             }
             // delimiters that belong to the parent node (e.g., SE, REPITA, function bodies, etc.) must not be bumped
-            if tok.is_any_of_kinds(&[TokenKind::Fim, TokenKind::Senao, TokenKind::Ate]) {
+            if token.is_any_of_kinds(&[TokenKind::Fim, TokenKind::Senao, TokenKind::Ate]) {
                 break;
             }
-            let _ = self.take_current();
+            let token = self.take_current();
+            debug!(r#"[Parser] Bumpou {token:?}"#);
         }
     }
 }

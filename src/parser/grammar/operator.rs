@@ -1,3 +1,5 @@
+use log::debug;
+
 use crate::parser::Parser;
 use crate::parser::cst::CstNode;
 use crate::parser::grammar::{GrammarFinalParseResultWithLookahead, NonTerminal};
@@ -6,11 +8,13 @@ use crate::token::{IntoKind, TokenKind};
 impl<'this> Parser<'this> {
     /// Performs a lookahead to decide via `First(operador_logico)` whether there can be a logical operator
     pub(super) fn maybe_parse_logical_operator(&mut self) -> GrammarFinalParseResultWithLookahead<'this> {
+        debug!(r#"[Parser] Chamou maybe_parse_logical_operator."#);
         self.parse_as_non_term_if_matches(NonTerminal::LogicalOperator, &[TokenKind::E, TokenKind::Ou])
     }
 
     /// Performs a lookahead to decide via `First(operador_relacional)` whether there can be a relational operator
     pub(super) fn maybe_parse_relational_operator(&mut self) -> GrammarFinalParseResultWithLookahead<'this> {
+        debug!(r#"[Parser] Chamou maybe_parse_relational_operator."#);
         self.parse_as_non_term_if_matches(
             NonTerminal::RelationalOperator,
             &[
@@ -26,16 +30,19 @@ impl<'this> Parser<'this> {
 
     /// Performs a lookahead to decide via `First(operador_soma)` whether there can be a addition operator
     pub(super) fn maybe_parse_addition_operator(&mut self) -> GrammarFinalParseResultWithLookahead<'this> {
+        debug!(r#"[Parser] Chamou maybe_parse_addition_operator."#);
         self.parse_as_non_term_if_matches(NonTerminal::SumOperator, &[TokenKind::Mais, TokenKind::Menos])
     }
 
     /// Performs a lookahead to decide via `First(operador_multiplicacao)` whether there can be a multiplication operator
     pub(super) fn maybe_parse_multiplication_operator(&mut self) -> GrammarFinalParseResultWithLookahead<'this> {
+        debug!(r#"[Parser] Chamou maybe_parse_multiplication_operator."#);
         self.parse_as_non_term_if_matches(NonTerminal::ProductOperator, &[TokenKind::Vezes, TokenKind::Divide])
     }
 
     /// Performs a lookahead to decide via `First(operador_nao)` whether there can be a not operator
     pub(super) fn maybe_parse_not_operator(&mut self) -> GrammarFinalParseResultWithLookahead<'this> {
+        debug!(r#"[Parser] Chamou maybe_parse_not_operator."#);
         self.parse_as_non_term_if_matches(NonTerminal::NotOperator, &[TokenKind::Nao])
     }
 

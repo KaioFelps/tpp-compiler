@@ -1,3 +1,5 @@
+use log::debug;
+
 use crate::parser::Parser;
 use crate::parser::cst::{CstNode, CstNodeKind};
 use crate::parser::grammar::GrammarFinalParseResult;
@@ -5,6 +7,7 @@ use crate::token::{CanBeOfKind, TokenKind};
 
 impl<'this> Parser<'this> {
     pub fn parse_program(&mut self) -> GrammarFinalParseResult<'this> {
+        debug!(r#"[Parser] Chamou parse_program."#);
         let mut program_node = CstNode::new_root();
 
         if self.peek_current().is_none() {
@@ -40,11 +43,13 @@ impl<'this> Parser<'this> {
     }
 
     fn synchronize_program(&mut self) {
+        debug!(r#"[Parser] Chamou synchronize_program."#);
         // bumps everything until the next end of statement token
         // we don't consume it because the `parse_program` is the one
         // to consume this right after calling this method
-        while let Some(tok) = self.take_current() {
-            if tok.is_of_kind(TokenKind::FimDeSentenca) {
+        while let Some(token) = self.take_current() {
+            debug!(r#"[Parser] Bumpou {token}"#);
+            if token.is_of_kind(TokenKind::FimDeSentenca) {
                 return;
             }
         }

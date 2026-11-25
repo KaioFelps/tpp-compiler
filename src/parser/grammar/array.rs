@@ -1,3 +1,5 @@
+use log::debug;
+
 use crate::parser::Parser;
 use crate::parser::cst::CstNode;
 use crate::parser::grammar::{GrammarFinalParseResult, GrammarFinalParseResultWithLookahead, NonTerminal};
@@ -6,6 +8,7 @@ use crate::token::{CanBeOfKind, TokenKind};
 
 impl<'this> Parser<'this> {
     pub(super) fn maybe_parse_array(&mut self) -> GrammarFinalParseResultWithLookahead<'this> {
+        debug!(r#"[Parser] Chamou maybe_parse_array."#);
         if self.peek_current().is_of_kind(AbreChave) {
             let array = self.parse_array()?;
             return Ok(Some(array));
@@ -15,6 +18,7 @@ impl<'this> Parser<'this> {
     }
 
     pub(super) fn parse_array(&mut self) -> GrammarFinalParseResult<'this> {
+        debug!(r#"[Parser] Chamou parse_array."#);
         let mut array = CstNode::new_non_terminal(NonTerminal::ArrInitialization);
 
         let curly_brackets_open = self.expect_token(|| None)?;

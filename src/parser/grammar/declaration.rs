@@ -1,4 +1,5 @@
 use itertools::Either::{Left, Right};
+use log::debug;
 
 use crate::parser::Parser;
 use crate::parser::cst::CstNode;
@@ -7,6 +8,7 @@ use crate::token::TokenKind;
 
 impl<'this> Parser<'this> {
     pub(super) fn parse_declaration(&mut self) -> GrammarFinalParseResult<'this> {
+        debug!(r#"[Parser] Chamou parse_declaration."#);
         let mut decl_node = CstNode::new_non_terminal(NonTerminal::Declaration);
 
         if let Some(type_node) = self.maybe_parse_type()? {

@@ -1,3 +1,5 @@
+use log::debug;
+
 use crate::parser::Parser;
 use crate::parser::cst::CstNode;
 use crate::parser::grammar::{GrammarFinalParseResult, NonTerminal};
@@ -5,11 +7,13 @@ use crate::token::{CanBeOfKind, IntoKind, TokenKind};
 
 impl<'this> Parser<'this> {
     pub(super) fn parse_expr_list(&mut self) -> GrammarFinalParseResult<'this> {
+        debug!(r#"[Parser] Chamou parse_expr_list."#);
         let expr_node = self.parse_expr()?;
         self.inner_parse_expr_list(expr_node)
     }
 
     pub(super) fn parse_expr(&mut self) -> GrammarFinalParseResult<'this> {
+        debug!(r#"[Parser] Chamou parse_expr."#);
         let mut expr_node = CstNode::new_non_terminal(NonTerminal::Expr);
         let simple_expr = self.parse_simple_expr()?;
         expr_node.append_child(simple_expr);
@@ -24,6 +28,7 @@ impl<'this> Parser<'this> {
     }
 
     fn parse_simple_expr(&mut self) -> GrammarFinalParseResult<'this> {
+        debug!(r#"[Parser] Chamou parse_simple_expr."#);
         let mut simple_expr_node = CstNode::new_non_terminal(NonTerminal::SimpleExpr);
         let additive_expr = self.parse_additive_expr()?;
         simple_expr_node.append_child(additive_expr);
@@ -38,6 +43,7 @@ impl<'this> Parser<'this> {
     }
 
     fn parse_additive_expr(&mut self) -> GrammarFinalParseResult<'this> {
+        debug!(r#"[Parser] Chamou parse_additive_expr."#);
         let mut additive_expr_node = CstNode::new_non_terminal(NonTerminal::AdditionExpr);
         let additive_expr = self.parse_multiplicative_expr()?;
         additive_expr_node.append_child(additive_expr);
@@ -51,6 +57,7 @@ impl<'this> Parser<'this> {
     }
 
     fn parse_multiplicative_expr(&mut self) -> GrammarFinalParseResult<'this> {
+        debug!(r#"[Parser] Chamou parse_multiplicative_expr."#);
         let mut multiplicative_expr_node = CstNode::new_non_terminal(NonTerminal::ProductExpr);
         let unary_expr = self.parse_unary_expr()?;
         multiplicative_expr_node.append_child(unary_expr);
@@ -83,6 +90,7 @@ impl<'this> Parser<'this> {
     }
 
     fn parse_unary_expr(&mut self) -> GrammarFinalParseResult<'this> {
+        debug!(r#"[Parser] Chamou parse_unary_expr."#);
         let mut unary_node = CstNode::new_non_terminal(NonTerminal::UnaryExpr);
 
         if let Some(op) = self.maybe_parse_addition_operator()? {
@@ -98,6 +106,7 @@ impl<'this> Parser<'this> {
     }
 
     pub(super) fn inner_parse_expr_list(&mut self, expr_node: CstNode<'this>) -> GrammarFinalParseResult<'this> {
+        debug!(r#"[Parser] Chamou inner_parse_expr_list."#);
         let mut expr_list_node = CstNode::new_non_terminal(super::NonTerminal::ExprList);
         expr_list_node.append_child(expr_node);
 
