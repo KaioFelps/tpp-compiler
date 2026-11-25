@@ -132,7 +132,7 @@ impl<'this> Parser<'this> {
         let end_of_statement_node = CstNode::new_terminal(next_token);
         func_header_node.append_child(end_of_statement_node);
 
-        let block_node = self.parse_block()?;
+        let block_node = self.parse_block(&[TokenKind::Fim])?;
         func_header_node.append_child(block_node);
 
         let next_token = self.expect_token(|| func_header_node.get_last_token())?;

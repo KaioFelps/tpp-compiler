@@ -76,12 +76,12 @@ impl<'this> Parser<'this> {
         }
         if_node.append_child(CstNode::new_terminal(else_token));
 
-        let block = self.parse_block()?;
+        let block = self.parse_block(&[TokenKind::Senao, TokenKind::Fim])?;
         if_node.append_child(block);
 
         if self.peek_current().is_of_kind(TokenKind::Senao) {
             let else_node = CstNode::new_terminal(self.expect_token(|| if_node.get_last_token())?);
-            let block = self.parse_block()?;
+            let block = self.parse_block(&[TokenKind::Fim])?;
             if_node.append_child(else_node);
             if_node.append_child(block);
         }
@@ -111,7 +111,7 @@ impl<'this> Parser<'this> {
         let repeat_term_node = CstNode::new_terminal(self.expect_token(|| None)?);
         repeat.append_child(repeat_term_node);
 
-        repeat.append_child(self.parse_block()?);
+        repeat.append_child(self.parse_block(&[TokenKind::Ate])?);
 
         let until = self.expect_token(|| repeat.get_last_token())?;
         if !until.is_of_kind(TokenKind::Ate) {
