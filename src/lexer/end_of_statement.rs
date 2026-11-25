@@ -16,6 +16,20 @@ const TERMINATING_TOKENS: [TokenKind; 8] = [
     TokenKind::Fim,
 ];
 
+const STATEMENT_BOUNDARY_KEYWORDS: [TokenKind; 11] = [
+    TokenKind::Se,
+    TokenKind::Entao,
+    TokenKind::Senao,
+    TokenKind::Fim,
+    TokenKind::Repita,
+    TokenKind::Ate,
+    TokenKind::Retorna,
+    TokenKind::Leia,
+    TokenKind::Escreva,
+    TokenKind::Inteiro,
+    TokenKind::Flutuante,
+];
+
 const OPENING_TOKENS: [TokenKind; 3] = [TokenKind::AbreParentese, TokenKind::AbreColchete, TokenKind::AbreChave];
 
 const CLOSING_TOKENS: [TokenKind; 3] = [
@@ -54,6 +68,12 @@ impl<'this> ManualDFALexer<'this> {
             .previous_token
             .as_ref()
             .is_some_and(|previous_token| previous_token.line_number() < current_token.line_number());
+
+        // command/block keywords in newlines cannot be within (), [] nor {}, hence
+        // we reset the cursor depth and leave this error to the parser step
+        if has_broken_line && STATEMENT_BOUNDARY_KEYWORDS.contains(current_token.kind()) {
+            self.cursor_depth = 0;
+        }
 
         let is_not_inside_wrapper_operators = self.cursor_depth == 0;
 
