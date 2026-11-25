@@ -18,6 +18,13 @@ pub struct Parser<'this> {
     errors_bag: TppCompilerErrorsBag,
 }
 
+#[derive(Debug)]
+pub enum ParserOutput<'a> {
+    Success(CstNode<'a>),
+    PartialFailure(CstNode<'a>, TppCompilerErrorsBag),
+    Failure(TppCompilerErrorsBag),
+}
+
 impl<'this> Parser<'this> {
     fn generate_error(&self, key: &str) -> TppCompilerError {
         TppCompilerError::new_parser(key, self.force_error_key, self.file.to_string(), None, None)
@@ -83,12 +90,13 @@ impl<'this> Parser<'this> {
         }
     }
 
-    pub fn into_cst(mut self) -> (Option<CstNode<'this>>, TppCompilerErrorsBag) {
+    pub fn into_cst(mut self) -> ParserOutput<'this> {
         match self.parse_program() {
-            Ok(node) => (Some(node), self.errors_bag),
+            Ok(root) if self.errors_bag.is_empty() => ParserOutput::Success(root),
+            Ok(root) => ParserOutput::PartialFailure(root, self.errors_bag),
             Err(err) => {
                 self.errors_bag.append_error(err);
-                (None, self.errors_bag)
+                ParserOutput::Failure(self.errors_bag)
             }
         }
     }

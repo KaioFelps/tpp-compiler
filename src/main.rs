@@ -6,9 +6,9 @@ mod token;
 
 use crate::{
     cli::{Args, CompilerStepStop},
-    errors::{TppCompilerError, TppCompilerErrorsBag},
+    errors::TppCompilerError,
     lexer::{Lexer, ManualDFALexer},
-    parser::{CstNode, Parser},
+    parser::{Parser, ParserOutput},
     token::Token,
 };
 use anyhow::anyhow;
@@ -113,11 +113,7 @@ fn lex_source_code<'a>(args: &Args, file: &str, data: &'a str) -> anyhow::Result
     Ok(tokens)
 }
 
-fn parse_source_code<'a>(
-    args: &Args,
-    file: &'a str,
-    tokens: Vec<Token<'a>>,
-) -> anyhow::Result<(Option<CstNode<'a>>, TppCompilerErrorsBag)> {
+fn parse_source_code<'a>(args: &Args, file: &'a str, tokens: Vec<Token<'a>>) -> anyhow::Result<ParserOutput<'a>> {
     info!("[parse_source_code::{file}] Instanciado o parser para iniciar a análise");
     let parser = Parser::new(file, tokens, args.use_errors_key);
 
@@ -136,19 +132,18 @@ fn run() -> anyhow::Result<()> {
     validate_source_files(&args)?;
 
     let source_codes = acquire_source_codes(&args)?;
-    // let source_files_tokens = lex_source_codes(&args, &source_codes)?;
 
     for (file, source_code) in &source_codes {
         if args.stop_at_step.is_some_and(|step| step == CompilerStepStop::Lexer) {
             lex_and_print_source_code(&args, file, source_code);
         } else {
             let tokens = lex_source_code(&args, file, source_code)?;
-            let (cst, mut errors_bag) = parse_source_code(&args, file, tokens)?;
+            let output = parse_source_code(&args, file, tokens)?;
 
-            if args.output_cst {
-                match cst {
-                    Some(cst) => println!("{cst:#?}"),
-                    None => {
+            match output {
+                ParserOutput::Failure(errors_bag) => return Err(anyhow!(errors_bag)),
+                ParserOutput::PartialFailure(_, mut errors_bag) => {
+                    if !errors_bag.is_empty() {
                         let syntax_tree_gen_warning = TppCompilerError::new_parser(
                             "WAR-SYN-NOT-GEN-SYNTAX-TREE",
                             args.use_errors_key,
@@ -158,25 +153,17 @@ fn run() -> anyhow::Result<()> {
                         );
                         errors_bag.append_error(syntax_tree_gen_warning);
                     }
-                }
-            }
 
-            if !errors_bag.is_empty() {
-                return Err(anyhow!(errors_bag));
-            }
+                    return Err(anyhow!(errors_bag));
+                }
+                ParserOutput::Success(cst) => {
+                    if args.output_cst {
+                        println!("{cst:#?}");
+                    }
+                }
+            };
         }
     }
-
-    // if source_files_tokens.len() > 1 {
-    //     for (file, tokens) in source_files_tokens {
-    //         println!("{file}");
-    //         tokens.iter().for_each(|token| println!("\t{token}"));
-    //     }
-    // } else if source_files_tokens.len() == 1 {
-    //     source_files_tokens.values().collect::<Vec<_>>()[0]
-    //         .iter()
-    //         .for_each(|token| println!("{}", token.kind()));
-    // }
 
     Ok(())
 }
