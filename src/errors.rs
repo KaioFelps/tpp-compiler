@@ -292,8 +292,16 @@ impl std::error::Error for TppCompilerError {
 pub struct TppCompilerErrorsBag(pub Vec<TppCompilerError>);
 
 impl TppCompilerErrorsBag {
-    pub fn new<T: IntoIterator<Item = TppCompilerError>>(errors: T) -> Self {
-        Self(errors.into_iter().collect_vec())
+    pub fn new() -> Self {
+        Self(Vec::new())
+    }
+
+    pub fn append_error(&mut self, error: TppCompilerError) {
+        self.0.push(error);
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
     }
 }
 

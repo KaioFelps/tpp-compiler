@@ -1,6 +1,9 @@
 use std::collections::VecDeque;
 
-use crate::{errors::TppCompilerError, token::Token};
+use crate::{
+    errors::{TppCompilerError, TppCompilerErrorsBag},
+    token::Token,
+};
 
 mod cst;
 mod grammar;
@@ -12,6 +15,7 @@ pub struct Parser<'this> {
     file: &'this str,
     /// Whether the errors should have `force_key` option enabled.
     force_error_key: bool,
+    errors_bag: TppCompilerErrorsBag,
 }
 
 impl<'this> Parser<'this> {
@@ -75,11 +79,18 @@ impl<'this> Parser<'this> {
             tokens: VecDeque::from_iter(tokens),
             file: source_file,
             force_error_key,
+            errors_bag: TppCompilerErrorsBag::new(),
         }
     }
 
-    pub fn into_cst(mut self) -> Result<CstNode<'this>, TppCompilerError> {
-        self.parse_program()
+    pub fn into_cst(mut self) -> (Option<CstNode<'this>>, TppCompilerErrorsBag) {
+        match self.parse_program() {
+            Ok(node) => (Some(node), self.errors_bag),
+            Err(err) => {
+                self.errors_bag.append_error(err);
+                (None, self.errors_bag)
+            }
+        }
     }
 
     fn take_current(&mut self) -> Option<Token<'this>> {
@@ -105,5 +116,9 @@ impl<'this> Parser<'this> {
             Some(token) => Ok(token),
             None => Err(self.generate_eof_error(nearest_token_fn())),
         }
+    }
+
+    fn emit_error(&mut self, error: TppCompilerError) {
+        self.errors_bag.append_error(error);
     }
 }

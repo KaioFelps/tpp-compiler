@@ -6,11 +6,12 @@ mod token;
 
 use crate::{
     cli::{Args, CompilerStepStop},
-    errors::{AnyErrorsBag, TppCompilerError},
+    errors::{TppCompilerError, TppCompilerErrorsBag},
     lexer::{Lexer, ManualDFALexer},
     parser::{CstNode, Parser},
     token::Token,
 };
+use anyhow::anyhow;
 use clap::Parser as _;
 use log::{debug, info};
 use std::{
@@ -112,15 +113,19 @@ fn lex_source_code<'a>(args: &Args, file: &str, data: &'a str) -> anyhow::Result
     Ok(tokens)
 }
 
-fn parse_source_code<'a>(args: &Args, file: &'a str, tokens: Vec<Token<'a>>) -> anyhow::Result<CstNode<'a>> {
+fn parse_source_code<'a>(
+    args: &Args,
+    file: &'a str,
+    tokens: Vec<Token<'a>>,
+) -> anyhow::Result<(Option<CstNode<'a>>, TppCompilerErrorsBag)> {
     info!("[parse_source_code::{file}] Instanciado o parser para iniciar a análise");
     let parser = Parser::new(file, tokens, args.use_errors_key);
 
     debug!("[parse_source_code::{file}] Iniciando a análise sitática do arquivo");
-    let cst = parser.into_cst()?;
+    let result = parser.into_cst();
     debug!("[parse_source_code::{file}] Finalizado o parsing do arquivo");
 
-    Ok(cst)
+    Ok(result)
 }
 
 fn run() -> anyhow::Result<()> {
@@ -138,25 +143,26 @@ fn run() -> anyhow::Result<()> {
             lex_and_print_source_code(&args, file, source_code);
         } else {
             let tokens = lex_source_code(&args, file, source_code)?;
-            let cst = parse_source_code(&args, file, tokens).map_err(|err| {
-                let mut bag = AnyErrorsBag::new().with_error(err);
-
-                if args.output_cst {
-                    let syntax_tree_gen_warning = TppCompilerError::new_parser(
-                        "WAR-SYN-NOT-GEN-SYNTAX-TREE",
-                        args.use_errors_key,
-                        file.to_string(),
-                        None,
-                        None,
-                    );
-                    bag.append_error(syntax_tree_gen_warning);
-                }
-
-                bag
-            })?;
+            let (cst, mut errors_bag) = parse_source_code(&args, file, tokens)?;
 
             if args.output_cst {
-                println!("{cst:#?}");
+                match cst {
+                    Some(cst) => println!("{cst:#?}"),
+                    None => {
+                        let syntax_tree_gen_warning = TppCompilerError::new_parser(
+                            "WAR-SYN-NOT-GEN-SYNTAX-TREE",
+                            args.use_errors_key,
+                            file.to_string(),
+                            None,
+                            None,
+                        );
+                        errors_bag.append_error(syntax_tree_gen_warning);
+                    }
+                }
+            }
+
+            if !errors_bag.is_empty() {
+                return Err(anyhow!(errors_bag));
             }
         }
     }
