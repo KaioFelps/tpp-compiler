@@ -1,4 +1,6 @@
 use configparser::ini::Ini;
+use core::fmt;
+use itertools::Itertools;
 use log::warn;
 use std::{collections::HashMap, fmt::Display, ops::Deref, sync::LazyLock};
 
@@ -283,5 +285,81 @@ impl std::error::Error for TppCompilerError {
 
     fn description(&self) -> &str {
         &self.0.key
+    }
+}
+
+#[derive(Debug)]
+pub struct TppCompilerErrorsBag(pub Vec<TppCompilerError>);
+
+impl TppCompilerErrorsBag {
+    pub fn new<T: IntoIterator<Item = TppCompilerError>>(errors: T) -> Self {
+        Self(errors.into_iter().collect_vec())
+    }
+}
+
+impl fmt::Display for TppCompilerErrorsBag {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for (i, err) in self.0.iter().enumerate() {
+            if i > 0 {
+                writeln!(f)?;
+            }
+            write!(f, "{err}")?;
+        }
+        Ok(())
+    }
+}
+
+impl IntoIterator for TppCompilerErrorsBag {
+    type Item = anyhow::Error;
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter().map(anyhow::Error::from).collect_vec().into_iter()
+    }
+}
+
+impl std::error::Error for TppCompilerErrorsBag {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        None
+    }
+
+    fn cause(&self) -> Option<&dyn std::error::Error> {
+        None
+    }
+}
+
+#[derive(Debug)]
+pub struct AnyErrorsBag(pub Vec<anyhow::Error>);
+
+impl AnyErrorsBag {
+    pub fn new() -> Self {
+        Self(vec![])
+    }
+
+    pub fn with_error<T: Into<anyhow::Error>>(mut self, error: T) -> Self {
+        self.0.push(error.into());
+        self
+    }
+}
+
+impl fmt::Display for AnyErrorsBag {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for (i, err) in self.0.iter().enumerate() {
+            if i > 0 {
+                writeln!(f)?;
+            }
+            write!(f, "{err}")?;
+        }
+        Ok(())
+    }
+}
+
+impl std::error::Error for AnyErrorsBag {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        None
+    }
+
+    fn cause(&self) -> Option<&dyn std::error::Error> {
+        None
     }
 }
