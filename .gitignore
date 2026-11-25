@@ -227,3 +227,6 @@ __marimo__/
 reports/*
 .DS_Store
 Relatório *.pdf
+
+*.ast.*
+*_tree.txt
