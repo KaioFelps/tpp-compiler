@@ -17,6 +17,7 @@ impl<'this> Parser<'this> {
             Err(err) => {
                 self.emit_error(err);
                 self.synchronize_block();
+                return self.parse_block();
             }
         };
 
