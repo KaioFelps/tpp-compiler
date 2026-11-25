@@ -6,7 +6,7 @@ mod token;
 
 use crate::{
     cli::{Args, CompilerStepStop},
-    errors::TppCompilerError,
+    errors::{AnyErrorsBag, TppCompilerError},
     lexer::{Lexer, ManualDFALexer},
     parser::{CstNode, Parser},
     token::Token,
@@ -138,7 +138,17 @@ fn run() -> anyhow::Result<()> {
             lex_and_print_source_code(&args, file, source_code);
         } else {
             let tokens = lex_source_code(&args, file, source_code)?;
-            let cst = parse_source_code(&args, file, tokens)?;
+            let cst = parse_source_code(&args, file, tokens).map_err(|err| {
+                let syntax_tree_gen_warning = TppCompilerError::new_parser(
+                    "WAR-SYN-NOT-GEN-SYNTAX-TREE",
+                    args.use_errors_key,
+                    file.to_string(),
+                    None,
+                    None,
+                );
+
+                AnyErrorsBag::new().with_error(err).with_error(syntax_tree_gen_warning)
+            })?;
             println!("{cst:#?}");
         }
     }
