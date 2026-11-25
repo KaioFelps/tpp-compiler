@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 
 use crate::{
     errors::{TppCompilerError, TppCompilerErrorsBag},
-    token::Token,
+    token::{IntoOnwedToken, Token},
 };
 
 mod cst;
@@ -50,18 +50,18 @@ impl<'this> Parser<'this> {
         )
     }
 
-    fn generate_error_with_ctx_token(
+    fn generate_error_with_ctx_token<Current: IntoOnwedToken, Extra: IntoOnwedToken>(
         &self,
         key: &str,
-        current_token: &Token<'this>,
-        extra_token: Option<&Token<'this>>,
+        current_token: Option<Current>,
+        extra_token: Option<Extra>,
     ) -> TppCompilerError {
         TppCompilerError::new_parser(
             key,
             self.force_error_key,
             self.file.to_string(),
-            Some(current_token.make_owned()),
-            extra_token.map(Token::make_owned),
+            current_token.map(|token| token.make_owned()),
+            extra_token.map(|token| token.make_owned()),
         )
     }
 

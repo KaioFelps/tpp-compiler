@@ -198,6 +198,22 @@ impl TppCompilerError {
             }
         };
     }
+
+    pub fn get_token(&self) -> Option<&OwnedToken> {
+        if let ErrorKind::Parser { current_token, .. } = &self.0.kind {
+            return current_token.as_ref();
+        }
+
+        None
+    }
+
+    pub fn get_extra_token(&self) -> Option<&OwnedToken> {
+        if let ErrorKind::Parser { extra_token, .. } = &self.0.kind {
+            return extra_token.as_ref();
+        }
+
+        None
+    }
 }
 
 impl Display for TppCompilerError {
@@ -311,7 +327,7 @@ impl fmt::Display for TppCompilerErrorsBag {
             if i > 0 {
                 writeln!(f)?;
             }
-            write!(f, "{err}")?;
+            writeln!(f, "{err}")?;
         }
         Ok(())
     }

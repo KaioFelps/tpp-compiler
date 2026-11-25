@@ -66,7 +66,7 @@ impl<'this> Parser<'this> {
         if !else_token.is_of_kind(TokenKind::Entao) {
             return Err(self.generate_error_with_ctx_token(
                 "ERR-SYN-IF-MISSING-THEN",
-                &else_token,
+                Some(&else_token),
                 if_node.get_last_token(),
             ));
         }
@@ -84,7 +84,11 @@ impl<'this> Parser<'this> {
 
         let end = self.expect_token(|| if_node.get_last_token())?;
         if !end.is_of_kind(TokenKind::Fim) {
-            return Err(self.generate_error_with_ctx_token("ERR-SYN-IF-MISSING-END", &end, if_node.get_last_token()));
+            return Err(self.generate_error_with_ctx_token(
+                "ERR-SYN-IF-MISSING-END",
+                Some(&end),
+                if_node.get_last_token(),
+            ));
         }
         let end = CstNode::new_terminal(end);
         if_node.append_child(end);
@@ -107,7 +111,7 @@ impl<'this> Parser<'this> {
         let until = self.expect_token(|| repeat.get_last_token())?;
         if !until.is_of_kind(TokenKind::Ate) {
             const ERROR_KEY: &str = "ERR-SYN-REPEAT-MISSING-STOP-CLAUSE";
-            return Err(self.generate_error_with_ctx_token(ERROR_KEY, &until, repeat.get_last_token()));
+            return Err(self.generate_error_with_ctx_token(ERROR_KEY, Some(&until), repeat.get_last_token()));
         }
         let until = CstNode::new_terminal(until);
         repeat.append_child(until);
@@ -130,7 +134,7 @@ impl<'this> Parser<'this> {
         let paren_open = self.expect_token(|| read_cmd.get_last_token())?;
         if !paren_open.is_of_kind(TokenKind::AbreParentese) {
             const ERROR_KEY: &str = "ERR-SYN-LEIA-MISSING-PAREN-OPEN";
-            return Err(self.generate_error_with_ctx_token(ERROR_KEY, &paren_open, read_cmd.get_last_token()));
+            return Err(self.generate_error_with_ctx_token(ERROR_KEY, Some(&paren_open), read_cmd.get_last_token()));
         }
         read_cmd.append_child(CstNode::new_terminal(paren_open));
         read_cmd.append_child(self.parse_var()?);
@@ -138,7 +142,7 @@ impl<'this> Parser<'this> {
         let paren_close = self.expect_token(|| read_cmd.get_last_token())?;
         if !paren_close.is_of_kind(TokenKind::FechaParentese) {
             const ERROR_KEY: &str = "ERR-SYN-LEIA-MISSING-PAREN-CLOSE";
-            return Err(self.generate_error_with_ctx_token(ERROR_KEY, &paren_close, read_cmd.get_last_token()));
+            return Err(self.generate_error_with_ctx_token(ERROR_KEY, Some(&paren_close), read_cmd.get_last_token()));
         }
         read_cmd.append_child(CstNode::new_terminal(paren_close));
 
@@ -158,7 +162,7 @@ impl<'this> Parser<'this> {
         let paren_open = self.expect_token(|| write_cmd.get_last_token())?;
         if !paren_open.is_of_kind(TokenKind::AbreParentese) {
             const ERROR_KEY: &str = "ERR-SYN-ESCREVA-MISSING-PAREN-OPEN";
-            return Err(self.generate_error_with_ctx_token(ERROR_KEY, &paren_open, write_cmd.get_last_token()));
+            return Err(self.generate_error_with_ctx_token(ERROR_KEY, Some(&paren_open), write_cmd.get_last_token()));
         }
         write_cmd.append_child(CstNode::new_terminal(paren_open));
         write_cmd.append_child(self.parse_expr()?);
@@ -166,7 +170,7 @@ impl<'this> Parser<'this> {
         let paren_close = self.expect_token(|| write_cmd.get_last_token())?;
         if !paren_close.is_of_kind(TokenKind::FechaParentese) {
             const ERROR_KEY: &str = "ERR-SYN-ESCREVA-MISSING-PAREN-CLOSE";
-            return Err(self.generate_error_with_ctx_token(ERROR_KEY, &paren_close, write_cmd.get_last_token()));
+            return Err(self.generate_error_with_ctx_token(ERROR_KEY, Some(&paren_close), write_cmd.get_last_token()));
         }
         write_cmd.append_child(CstNode::new_terminal(paren_close));
 
@@ -186,7 +190,7 @@ impl<'this> Parser<'this> {
         let paren_open = self.expect_token(|| return_cmd.get_last_token())?;
         if !paren_open.is_of_kind(TokenKind::AbreParentese) {
             const ERROR_KEY: &str = "ERR-SYN-RETORNA-MISSING-PAREN-OPEN";
-            return Err(self.generate_error_with_ctx_token(ERROR_KEY, &paren_open, return_cmd.get_last_token()));
+            return Err(self.generate_error_with_ctx_token(ERROR_KEY, Some(&paren_open), return_cmd.get_last_token()));
         }
         return_cmd.append_child(CstNode::new_terminal(paren_open));
         return_cmd.append_child(self.parse_expr_list()?);
@@ -194,7 +198,7 @@ impl<'this> Parser<'this> {
         let paren_close = self.expect_token(|| return_cmd.get_last_token())?;
         if !paren_close.is_of_kind(TokenKind::FechaParentese) {
             const ERROR_KEY: &str = "ERR-SYN-RETORNA-MISSING-PAREN-CLOSE";
-            return Err(self.generate_error_with_ctx_token(ERROR_KEY, &paren_close, return_cmd.get_last_token()));
+            return Err(self.generate_error_with_ctx_token(ERROR_KEY, Some(&paren_close), return_cmd.get_last_token()));
         }
         return_cmd.append_child(CstNode::new_terminal(paren_close));
 
