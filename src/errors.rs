@@ -336,6 +336,10 @@ impl AnyErrorsBag {
         Self(vec![])
     }
 
+    pub fn append_error<T: Into<anyhow::Error>>(&mut self, error: T) {
+        self.0.push(error.into());
+    }
+
     pub fn with_error<T: Into<anyhow::Error>>(mut self, error: T) -> Self {
         self.0.push(error.into());
         self

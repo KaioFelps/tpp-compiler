@@ -139,17 +139,25 @@ fn run() -> anyhow::Result<()> {
         } else {
             let tokens = lex_source_code(&args, file, source_code)?;
             let cst = parse_source_code(&args, file, tokens).map_err(|err| {
-                let syntax_tree_gen_warning = TppCompilerError::new_parser(
-                    "WAR-SYN-NOT-GEN-SYNTAX-TREE",
-                    args.use_errors_key,
-                    file.to_string(),
-                    None,
-                    None,
-                );
+                let mut bag = AnyErrorsBag::new().with_error(err);
 
-                AnyErrorsBag::new().with_error(err).with_error(syntax_tree_gen_warning)
+                if args.output_cst {
+                    let syntax_tree_gen_warning = TppCompilerError::new_parser(
+                        "WAR-SYN-NOT-GEN-SYNTAX-TREE",
+                        args.use_errors_key,
+                        file.to_string(),
+                        None,
+                        None,
+                    );
+                    bag.append_error(syntax_tree_gen_warning);
+                }
+
+                bag
             })?;
-            println!("{cst:#?}");
+
+            if args.output_cst {
+                println!("{cst:#?}");
+            }
         }
     }
 
