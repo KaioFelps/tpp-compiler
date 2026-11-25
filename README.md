@@ -7,7 +7,7 @@ o desenvolvimento, veja o arquivo [rust-impl.md](./rust-impl.md).
 > [!WARNING]
 > Parte do código-fonte Rust pode estar misturado com o código-fonte Python.
 > No geral, os módulos Python são prefixados com `tpp` (por exemplo, `tppparser/` ou `tpplexer/`),
-> enquanto os do Rust, não (`parser/` ou `lexe`/`).
+> enquanto os do Rust, não (`parser/` ou `lexer`/`).
 
 ## Compilando
 Para compilar o compilador TPP (Rust), utilize o comando `cargo build --release` e acesse o executável
@@ -16,6 +16,14 @@ em `./target/release/tppc <ARGUMENTOS>`.
 Opcionalmente, você pode rodar o binário pelo cargo utilizando `cargo run --release -- <ARGUMENTOS>`.
 
 ## Uso
+> [!WARNING]
+> É necessário ter o programa `dot` instalado na sua máquina:
+> ```sh
+> winget install Graphviz.Graphviz # windows
+> brew install graphviz # macos
+> sudo apt update && sudo apt install graphviz # linux
+> ```
+
 Considere `tppc` o executável final (veja a seção [Compilando](#compilando)).
 
 Utilize a _flag_ `--help` para ter detalhes de todas as opções do compilador. As principais estão listadas
