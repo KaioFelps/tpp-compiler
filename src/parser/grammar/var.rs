@@ -183,13 +183,8 @@ impl<'this> Parser<'this> {
         let attribution_node = self.parse_attribution(&vars_init_node)?;
         vars_init_node.append_child(attribution_node);
 
-        let can_start_expr = self.peek_current().is_any_of_kinds(&[
-            TokenKind::FimDeSentenca,
-            TokenKind::Fim,
-            TokenKind::Senao,
-            TokenKind::Ate,
-        ]);
-
+        // First(expressao) = First(expressao_simples) = First(expressao_aditiva) = First(expressao_multiplicativa) = First(expressao_unaria)
+        let can_start_expr = self.lookahead_is_unary_expr();
         if !can_start_expr {
             return Err(self.generate_error_with_token_opt(
                 "ERR-SYN-VARS-INITIALIZATION-MISSING-VALUE",
