@@ -13,12 +13,7 @@ impl<'this> Parser<'this> {
 
     pub(super) fn parse_func_header(&mut self) -> GrammarFinalParseResult<'this> {
         debug!(r#"[Parser] Chamou parse_func_header."#);
-        const FUNC_HEADER_DEFAULT_ERROR_KEY: &str = "ERR-SYN-CABECALHO";
-        let ident_token = self.expect_token(|| None)?;
-        if *ident_token.kind() != TokenKind::Ident {
-            return Err(self.generate_error_with_token(FUNC_HEADER_DEFAULT_ERROR_KEY, &ident_token));
-        }
-        let ident_node = CstNode::new_terminal(ident_token);
+        let ident_node = self.get_token_if_kind_or_error(TokenKind::Ident, "ERR-SYN-CABECALHO")?;
         self.inner_parse_func_header(ident_node)
     }
 
@@ -31,20 +26,18 @@ impl<'this> Parser<'this> {
             let type_node = match self.maybe_parse_type()? {
                 Some(token) => token,
                 None => {
-                    return if let Some(token) = self.peek_current() {
-                        Err(self.generate_error_with_token("ERR-SYN-MULTIPLE-RETURN-TYPES-EXPECTED-TYPE", token))
-                    } else {
-                        Err(self.generate_eof_error(return_type_node.get_last_token()))
+                    let Some(token) = self.peek_current() else {
+                        return Err(self.generate_eof_error(return_type_node.get_last_token()));
                     };
+
+                    let err = self.generate_error_with_token("ERR-SYN-MULTIPLE-RETURN-TYPES-INVALID", token);
+                    self.emit_error(err);
+                    break;
                 }
             };
             return_type_node.append_child(type_node);
 
-            let has_more_return_types = self
-                .peek_current()
-                .into_kind()
-                .is_some_and(|kind| kind == TokenKind::Virgula);
-
+            let has_more_return_types = self.peek_current().is_of_kind(TokenKind::Virgula);
             if !has_more_return_types {
                 break;
             }
@@ -71,11 +64,7 @@ impl<'this> Parser<'this> {
     ) -> GrammarInnerParseFailable<'this> {
         debug!(r#"[Parser] Chamou inner_parse_func_decl_without_return_type."#);
         // First(_continue_as_declaracao_funcao_sem_retorno) = First(_continue_as_cabecalho) = { ABRE_PARENTESE }
-        let is_func_decl_without_return_type = self
-            .peek_current()
-            .into_kind()
-            .is_some_and(|kind| kind == TokenKind::AbreParentese);
-
+        let is_func_decl_without_return_type = self.peek_current().is_of_kind(TokenKind::AbreParentese);
         if !is_func_decl_without_return_type {
             return Ok(Right(ident_node));
         }
@@ -101,50 +90,71 @@ impl<'this> Parser<'this> {
 
     pub(super) fn inner_parse_func_header(&mut self, ident_node: CstNode<'this>) -> GrammarFinalParseResult<'this> {
         debug!(r#"[Parser] Chamou inner_parse_func_header."#);
-        const FUNC_HEADER_DEFAULT_ERROR_KEY: &str = "ERR-SYN-CABECALHO";
         let mut func_header_node = CstNode::new_non_terminal(NonTerminal::FuncHeader);
         func_header_node.append_child(ident_node);
 
-        let next_token = self.expect_token(|| func_header_node.get_last_token())?;
-        if *next_token.kind() != TokenKind::AbreParentese {
-            return Err(self.generate_error_with_token(FUNC_HEADER_DEFAULT_ERROR_KEY, &next_token));
+        if let Err(err) = self.get_token_and_append_if_kind_or_error(
+            &mut func_header_node,
+            TokenKind::AbreParentese,
+            "ERR-SYN-FUNC-HEADER-MISSING-PAREN-OPEN",
+        ) {
+            self.emit_error(err);
         }
-        let paren_open_node = CstNode::new_terminal(next_token);
-        func_header_node.append_child(paren_open_node);
 
         let parameters = self.inner_parse_func_params_vec()?;
         for parameter in parameters {
             func_header_node.append_child(parameter);
         }
 
-        let next_token = self.expect_token(|| func_header_node.get_last_token())?;
-        if *next_token.kind() != TokenKind::FechaParentese {
-            return Err(self.generate_error_with_token(FUNC_HEADER_DEFAULT_ERROR_KEY, &next_token));
-        }
-        let paren_close_node = CstNode::new_terminal(next_token);
-        func_header_node.append_child(paren_close_node);
+        let did_close_paren = match self.get_token_and_append_if_kind_or_error(
+            &mut func_header_node,
+            TokenKind::FechaParentese,
+            "ERR-SYN-FUNC-HEADER-MISSING-PAREN-CLOSE",
+        ) {
+            Ok(_) => true,
+            Err(err) => {
+                self.emit_error(err);
+                false
+            }
+        };
 
-        let next_token = self.expect_token(|| func_header_node.get_last_token())?;
-        if *next_token.kind() != TokenKind::FimDeSentenca {
-            return Err(self.generate_error_with_token(FUNC_HEADER_DEFAULT_ERROR_KEY, &next_token));
+        if did_close_paren {
+            if let Err(err) = self.get_token_and_append_if_kind_or_error(
+                &mut func_header_node,
+                TokenKind::FimDeSentenca,
+                "ERR-SYN-CABECALHO",
+            ) {
+                self.emit_error(err);
+            }
+        } else if self.peek_current().is_of_kind(TokenKind::FimDeSentenca) {
+            let _ = self.take_current();
         }
-        let end_of_statement_node = CstNode::new_terminal(next_token);
-        func_header_node.append_child(end_of_statement_node);
 
         let block_node = self.parse_block(&[TokenKind::Fim])?;
         func_header_node.append_child(block_node);
 
-        let next_token = self.expect_token(|| func_header_node.get_last_token()).map_err(|err| {
-            self.generate_error_with_ctx_token("ERR-SYN-FUNC-MISSING-END", err.get_token(), err.get_extra_token())
-        })?;
-
-        if *next_token.kind() != TokenKind::Fim {
-            return Err(self.generate_error_with_token(FUNC_HEADER_DEFAULT_ERROR_KEY, &next_token));
-        }
-        let end_node = CstNode::new_terminal(next_token);
-        func_header_node.append_child(end_node);
+        self.get_token_and_append_if_kind_or_error_with_eof_error(
+            &mut func_header_node,
+            TokenKind::Fim,
+            "ERR-SYN-FUNC-MISSING-END",
+            "ERR-SYN-FUNC-MISSING-END",
+        )?;
 
         Ok(func_header_node)
+    }
+
+    fn synchronize_func_params(&mut self) {
+        // FOLLOW(lista_parametros) = { VIRGULA, FECHA_PARENTESE, FIM_DE_SENTENCA, FIM }
+        while let Some(token) = self.peek_current()
+            && !token.is_any_of_kinds(&[
+                TokenKind::Virgula,
+                TokenKind::FechaParentese,
+                TokenKind::FimDeSentenca,
+                TokenKind::Fim,
+            ])
+        {
+            let _ = self.take_current();
+        }
     }
 
     fn inner_parse_func_params_vec(&mut self) -> Result<Vec<CstNode<'this>>, TppCompilerError> {
@@ -153,21 +163,24 @@ impl<'this> Parser<'this> {
         let mut nodes = Vec::<CstNode<'this>>::new();
         let mut requires_a_new_parameter = false;
 
-        // First(parameter) = First(tipo) = { Inteiro, Flutuante }
-        while self
-            .peek_current()
-            .into_kind()
-            .is_some_and(|kind| matches!(kind, TokenKind::Inteiro | TokenKind::Flutuante))
-        {
+        // Follow(lista_parametros) = { VIRGULA, FECHA_PARENTESE } ⋃ { FIM_DE_SENTENCA {* case `)` is missing *} }
+        // i.e., keeps parsing the parameters vector until it's got outside of the function header signature
+        while !self.peek_current().is_any_of_kinds(&[
+            TokenKind::FechaParentese,
+            TokenKind::FimDeSentenca,
+            TokenKind::Fim,
+        ]) {
             requires_a_new_parameter = false;
-            let parameter_node = self.parse_func_parameter()?;
-            nodes.push(parameter_node);
 
-            let has_more_parameters = self
-                .peek_current()
-                .into_kind()
-                .is_some_and(|kind| kind == TokenKind::Virgula);
+            match self.parse_func_parameter() {
+                Ok(parameter_node) => nodes.push(parameter_node),
+                Err(err) => {
+                    self.emit_error(err);
+                    self.synchronize_func_params();
+                }
+            }
 
+            let has_more_parameters = self.peek_current().is_of_kind(TokenKind::Virgula);
             if !has_more_parameters {
                 break;
             }
@@ -178,11 +191,26 @@ impl<'this> Parser<'this> {
             requires_a_new_parameter = true;
         }
 
+        // don't return but emit the error instead, so that the rest can be parsed by the callee function parser method
         if requires_a_new_parameter {
-            return Err(self.generate_error_with_token_opt(FUNC_PARAMS_DEFAULT_ERROR_KEY, self.peek_current()));
+            self.emit_error(self.generate_error_with_token_opt(FUNC_PARAMS_DEFAULT_ERROR_KEY, self.peek_current()));
         }
 
         Ok(nodes)
+    }
+
+    fn synchronize_array_parameter(&mut self) {
+        // bump any token but those that would be expected to be here
+        while let Some(token) = self.peek_current()
+            && !token.is_any_of_kinds(&[
+                TokenKind::FechaColchete,  // would close the array dimension
+                TokenKind::Virgula,        // would indicate a following parameter
+                TokenKind::FechaParentese, // would indicate the end of the function parameters signature
+                TokenKind::FimDeSentenca, // handle cases where both ] and ) is missing like `inteiro func(inteiro: a[<EOS>`
+            ])
+        {
+            let _ = self.take_current();
+        }
     }
 
     fn parse_func_parameter(&mut self) -> GrammarFinalParseResult<'this> {
@@ -197,19 +225,19 @@ impl<'this> Parser<'this> {
         let mut param_node = CstNode::new_non_terminal(NonTerminal::Param);
         param_node.append_child(type_node);
 
-        let colon_token = self.expect_token(|| param_node.get_last_token())?;
-        if *colon_token.kind() != TokenKind::DoisPontos {
-            return Err(self.generate_error_with_token(FUNC_PARAMS_DEFAULT_ERROR_KEY, &colon_token));
+        if let Err(err) = self.get_token_and_append_if_kind_or_error(
+            &mut param_node,
+            TokenKind::DoisPontos,
+            "ERR-SYN-PARAM-MISSING-COLON",
+        ) {
+            self.emit_error(err);
         }
-        let colon_node: CstNode<'_> = CstNode::new_terminal(colon_token);
-        param_node.append_child(colon_node);
 
-        let iden_token = self.expect_token(|| param_node.get_last_token())?;
-        if *iden_token.kind() != TokenKind::Ident {
-            return Err(self.generate_error_with_token(FUNC_PARAMS_DEFAULT_ERROR_KEY, &iden_token));
+        if let Err(err) =
+            self.get_token_and_append_if_kind_or_error(&mut param_node, TokenKind::Ident, FUNC_PARAMS_DEFAULT_ERROR_KEY)
+        {
+            self.emit_error(err);
         }
-        let iden_node = CstNode::new_terminal(iden_token);
-        param_node.append_child(iden_node);
 
         loop {
             let is_array = self
@@ -221,17 +249,26 @@ impl<'this> Parser<'this> {
                 break;
             }
 
-            let brackets_open_token = self.expect_token(|| None)?;
-            let brackets_open_node = CstNode::new_terminal(brackets_open_token);
-            param_node.append_child(brackets_open_node);
-
-            let brackets_close_token = self.expect_token(|| param_node.get_last_token())?;
-            if *brackets_close_token.kind() != TokenKind::FechaColchete {
-                return Err(self.generate_error_with_token(FUNC_PARAMS_DEFAULT_ERROR_KEY, &brackets_close_token));
+            if let Err(err) = self.get_token_and_append_if_kind_or_error(
+                &mut param_node,
+                TokenKind::AbreColchete,
+                FUNC_PARAMS_DEFAULT_ERROR_KEY,
+            ) {
+                self.emit_error(err);
             }
 
-            let brackets_close_node = CstNode::new_terminal(brackets_close_token);
-            param_node.append_child(brackets_close_node);
+            if let Err(err) = self.get_token_and_append_if_kind_or_error(
+                &mut param_node,
+                TokenKind::FechaColchete,
+                "ERR-SYN-PARAM-INVALID-ARRAY-DIM",
+            ) {
+                self.emit_error(err);
+                self.synchronize_array_parameter();
+
+                if self.peek_current().is_of_kind(TokenKind::FechaColchete) {
+                    let _ = self.take_current();
+                }
+            }
         }
 
         Ok(param_node)
@@ -245,8 +282,7 @@ impl<'this> Parser<'this> {
         // First(_continue_as_tipos_retorno) = First(tipo) = {Inteiro, Flutuante}
         let is_func_decl_with_multiple_return_types = self
             .peek_current()
-            .into_kind()
-            .is_some_and(|kind| matches!(kind, TokenKind::Inteiro | TokenKind::Flutuante));
+            .is_any_of_kinds(&[TokenKind::Inteiro, TokenKind::Flutuante]);
 
         if !is_func_decl_with_multiple_return_types {
             return Ok(Right(parenthesis_node));
@@ -266,11 +302,13 @@ impl<'this> Parser<'this> {
         debug!(r#"[Parser] Chamou inner_parse_as_func_call."#);
         let mut func_call = CstNode::new_non_terminal(NonTerminal::FuncCall).with_child(ident_node);
 
-        let paren_open = self.expect_token(|| func_call.get_last_token())?;
-        if !paren_open.is_of_kind(AbreParentese) {
-            return Err(self.generate_error_with_token("ERR-SYN-FUNC-CALL-MISSING-PAREN-OPEN", &paren_open));
+        if let Err(err) = self.get_token_and_append_if_kind_or_error(
+            &mut func_call,
+            AbreParentese,
+            "ERR-SYN-FUNC-CALL-MISSING-PAREN-OPEN",
+        ) {
+            self.emit_error(err);
         }
-        func_call.append_child(CstNode::new_terminal(paren_open));
 
         if !self.peek_current().is_of_kind(FechaParentese) {
             func_call.append_child(self.parse_expr()?);
@@ -282,12 +320,11 @@ impl<'this> Parser<'this> {
             }
         }
 
-        let paren_close = self.expect_token(|| func_call.get_last_token())?;
-        if !paren_close.is_of_kind(FechaParentese) {
-            return Err(self.generate_error_with_token("ERR-SYN-FUNC-CALL-MISSING-PAREN-CLOSE", &paren_close));
-        }
-        func_call.append_child(CstNode::new_terminal(paren_close));
-
+        self.get_token_and_append_if_kind_or_error(
+            &mut func_call,
+            FechaParentese,
+            "ERR-SYN-FUNC-CALL-MISSING-PAREN-CLOSE",
+        )?;
         Ok(func_call)
     }
 }

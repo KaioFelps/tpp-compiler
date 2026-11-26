@@ -131,6 +131,21 @@ impl<'this> Parser<'this> {
     }
 
     #[inline]
+    fn get_token_if_kind_or_error(
+        &mut self,
+        kind: TokenKind,
+        error_key: &str,
+    ) -> Result<CstNode<'this>, TppCompilerError> {
+        if let Some(token) = self.peek_current()
+            && !token.is_of_kind(kind)
+        {
+            return Err(self.generate_error_with_token(error_key, token));
+        }
+
+        Ok(CstNode::new_terminal(self.expect_token(|| None)?))
+    }
+
+    #[inline]
     fn get_token_and_append_if_kind_or_error(
         &mut self,
         subtree_root: &mut CstNode<'this>,
