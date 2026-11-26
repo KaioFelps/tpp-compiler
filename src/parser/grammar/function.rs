@@ -135,7 +135,10 @@ impl<'this> Parser<'this> {
         let block_node = self.parse_block(&[TokenKind::Fim])?;
         func_header_node.append_child(block_node);
 
-        let next_token = self.expect_token(|| func_header_node.get_last_token())?;
+        let next_token = self.expect_token(|| func_header_node.get_last_token()).map_err(|err| {
+            self.generate_error_with_ctx_token("ERR-SYN-FUNC-MISSING-END", err.get_token(), err.get_extra_token())
+        })?;
+
         if *next_token.kind() != TokenKind::Fim {
             return Err(self.generate_error_with_token(FUNC_HEADER_DEFAULT_ERROR_KEY, &next_token));
         }
