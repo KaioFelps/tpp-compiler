@@ -107,6 +107,11 @@ impl<'this> Parser<'this> {
             TokenKind::AbreParentese,
             "ERR-SYN-FUNC-HEADER-MISSING-PAREN-OPEN",
         ) {
+            // immediately return if it clearly cannot continue through the function header production
+            if self.peek_current().is_none() || self.peek_current().is_of_kind(TokenKind::FimDeSentenca) {
+                return Err(err);
+            }
+            // emit the error and continue parsing it as a function header production otherwise
             self.emit_error(err);
         }
 
