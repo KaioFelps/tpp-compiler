@@ -111,14 +111,14 @@ impl<'this> Parser<'this> {
         let repeat_term_node = CstNode::new_terminal(self.expect_token(|| None)?);
         repeat.append_child(repeat_term_node);
 
-        repeat.append_child(self.parse_block(&[TokenKind::Ate])?);
+        repeat.append_child(self.parse_block(&[TokenKind::Ate, TokenKind::Fim])?);
 
-        let until = self.expect_token(|| repeat.get_last_token())?;
+        let until = self.peek_current();
         if !until.is_of_kind(TokenKind::Ate) {
             const ERROR_KEY: &str = "ERR-SYN-REPEAT-MISSING-STOP-CLAUSE";
-            return Err(self.generate_error_with_ctx_token(ERROR_KEY, Some(&until), repeat.get_last_token()));
+            return Err(self.generate_error_with_ctx_token(ERROR_KEY, until, repeat.get_last_token()));
         }
-        let until = CstNode::new_terminal(until);
+        let until = CstNode::new_terminal(self.expect_token(|| repeat.get_last_token())?);
         repeat.append_child(until);
 
         repeat.append_child(self.parse_expr()?);
