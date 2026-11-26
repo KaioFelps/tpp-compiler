@@ -41,10 +41,7 @@ impl<'this> Parser<'this> {
         let mut targets_list_node = CstNode::new_non_terminal(NonTerminal::TargetList);
         targets_list_node.append_child(var_node);
 
-        let is_target_list = self
-            .peek_current()
-            .into_kind()
-            .is_some_and(|kind| kind == TokenKind::Virgula);
+        let is_target_list = self.peek_current().is_of_kind(TokenKind::Virgula);
 
         // targets list can be composed of a single var
         // so we face it as successfully parsed here
@@ -52,18 +49,18 @@ impl<'this> Parser<'this> {
             return Ok(Left(targets_list_node));
         }
 
-        while let Some(token) = self.peek_current() {
-            if *token.kind() != TokenKind::Virgula {
-                break;
-            }
+        while let Some(token) = self.peek_current()
+            && token.is_of_kind(TokenKind::Virgula)
+        {
+            match self.expect_token(|| targets_list_node.get_last_token()) {
+                Ok(comma_token) => targets_list_node.append_child(CstNode::new_terminal(comma_token)),
+                Err(err) => self.emit_error(err),
+            };
 
-            // no need to verify again its a token since we just verified it above
-            let comma_token = self.expect_token(|| targets_list_node.get_last_token())?;
-            let comma_node = CstNode::new_terminal(comma_token);
-            targets_list_node.append_child(comma_node);
-
-            let var_node = self.parse_var()?;
-            targets_list_node.append_child(var_node);
+            match self.parse_var() {
+                Ok(var_node) => targets_list_node.append_child(var_node),
+                Err(err) => self.emit_error(err),
+            };
         }
 
         Ok(Left(targets_list_node))
@@ -124,11 +121,7 @@ impl<'this> Parser<'this> {
     ) -> GrammarInnerParseFailable<'this> {
         debug!(r#"[Parser] Chamou inner_parse_vars_init_with_parenthesis."#);
         // First(_continue_as_inicializacao_variaveis) = { ID } as per diagram
-        let is_vars_init = self
-            .peek_current()
-            .into_kind()
-            .is_some_and(|kind| kind == TokenKind::Ident);
-
+        let is_vars_init = self.peek_current().is_of_kind(TokenKind::Ident);
         if !is_vars_init {
             return Ok(Right(parenthesis_node));
         }
@@ -136,8 +129,12 @@ impl<'this> Parser<'this> {
         let mut vars_init_node = CstNode::new_non_terminal(NonTerminal::VarInitialization);
         vars_init_node.append_child(parenthesis_node);
 
-        let targets_list = self.parse_targets_list()?;
-        vars_init_node.append_child(targets_list);
+        match self.parse_targets_list() {
+            Ok(targets_list) => vars_init_node.append_child(targets_list),
+            Err(err) => {
+                self.emit_error(err);
+            }
+        };
 
         let parenthesis_close_token = match self.take_current() {
             Some(token) => {
@@ -196,6 +193,20 @@ impl<'this> Parser<'this> {
 
         let attribution_node = self.parse_attribution(&vars_init_node)?;
         vars_init_node.append_child(attribution_node);
+
+        let can_start_expr = self.peek_current().is_any_of_kinds(&[
+            TokenKind::FimDeSentenca,
+            TokenKind::Fim,
+            TokenKind::Senao,
+            TokenKind::Ate,
+        ]);
+
+        if !can_start_expr {
+            return Err(self.generate_error_with_token_opt(
+                "ERR-SYN-VARS-INITIALIZATION-MISSING-VALUE",
+                vars_init_node.get_last_token(),
+            ));
+        }
 
         let expr_list_node = self.parse_expr_list()?;
         vars_init_node.append_child(expr_list_node);
