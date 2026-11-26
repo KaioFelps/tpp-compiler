@@ -42,11 +42,11 @@ impl<'this> Parser<'this> {
             }
         }
 
-        let paren_close_token = self.expect_token(|| tuple_node.get_last_token())?;
-        if *paren_close_token.kind() != FechaParentese {
-            return Err(self.generate_error_with_token("ERR-SYN-TUPLE-MISSING-PAREN-CLOSE", &paren_close_token));
-        }
-        tuple_node.append_child(CstNode::new_terminal(paren_close_token));
+        self.get_token_and_append_if_kind_or_error(
+            &mut tuple_node,
+            FechaParentese,
+            "ERR-SYN-TUPLE-MISSING-PAREN-CLOSE",
+        )?;
 
         Ok(Left(tuple_node))
     }
