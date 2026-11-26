@@ -18,5 +18,8 @@ jobs:
         uses: astral-sh/setup-uv@v3
         with:
           enable-cache: true
+      
+      - name: Install Graphviz
+        run: sudo apt-get update && sudo apt-get install -y graphviz
 
       - uses: education/autograding@v1

@@ -229,4 +229,5 @@ reports/*
 Relatório *.pdf
 
 *.ast.*
+*.cst.*
 *_tree.txt

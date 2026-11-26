@@ -23,6 +23,9 @@ jobs:
           uv export --all-groups > requirements.txt
           uv pip install --system -r requirements.txt
 
+      - name: Install Graphviz
+        run: sudo apt-get update && sudo apt-get install -y graphviz
+
       - name: Testes Léxicos
         if: hashFiles('tests/tpplex_test.py') != ''
         run: pytest tests/tpplex_test.py -v --lexer rust
