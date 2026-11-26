@@ -48,7 +48,7 @@ def tokens_de(lexer_type, codigo):
         try:
             # stderr=STDOUT mantém a ordem cronológica e sem check=True para tolerar exit code 1 em erros léxicos
             proc = subprocess.run(
-                [bin_path, "-i", "-k", "--omit-eos", tmp_path],
+                [bin_path, "-i", "-k", "--omit-eos", "-s", "lexer", tmp_path],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
