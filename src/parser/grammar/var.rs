@@ -200,25 +200,17 @@ impl<'this> Parser<'this> {
 
     fn parse_attribution(&mut self, latest_node: &CstNode<'this>) -> Result<CstNode<'this>, TppCompilerError> {
         debug!(r#"[Parser] Chamou parse_attribution."#);
-        let token = match self.take_current() {
-            Some(token) => token,
-            None => {
-                return Err(self.generate_error_with_token_opt(
-                    "ERR-SYN-VARS-INITIALIZATION-MISSING-ATTRIBUTION",
-                    latest_node.get_last_token(),
-                ));
-            }
-        };
 
-        let attribution_token = match *token.kind() {
-            TokenKind::Atribuicao => token,
-            _ => {
-                const ERROR_KEY: &str = "ERR-SYN-VARS-INITIALIZATION-EXPECTED-ATTRIBUTION";
-                return Err(self.generate_error_with_token(ERROR_KEY, &token));
-            }
-        };
+        if let Some(token) = self.peek_current()
+            && !token.is_of_kind(TokenKind::Atribuicao)
+        {
+            const ERROR_KEY: &str = "ERR-SYN-VARS-INITIALIZATION-EXPECTED-ATTRIBUTION";
+            return Err(self.generate_error_with_token(ERROR_KEY, token));
+        }
 
-        Ok(CstNode::new_terminal(attribution_token))
+        Ok(CstNode::new_terminal(
+            self.expect_token(|| latest_node.get_last_token())?,
+        ))
     }
 
     /// Checks whether a variable attribution can be parsed (and parses it if so).
