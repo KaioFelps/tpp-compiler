@@ -31,9 +31,12 @@ impl<'this> Parser<'this> {
     pub(super) fn parse_targets_list(&mut self) -> GrammarFinalParseResult<'this> {
         debug!(r#"[Parser] Chamou parse_targets_list."#);
         let var_node = self.parse_var()?;
-        self.inner_parse_targets_list(var_node)?
-            .left()
-            .ok_or_else(|| self.generate_error("ERR-SYN-TARGETS-LIST-INVALIDO"))
+        match self.inner_parse_targets_list(var_node)? {
+            Left(node) => Ok(node),
+            Right(node) => {
+                Err(self.generate_error_with_token_opt("ERR-SYN-TARGETS-LIST-INVALIDO", node.get_last_token()))
+            }
+        }
     }
 
     pub(super) fn inner_parse_targets_list(&mut self, var_node: CstNode<'this>) -> GrammarInnerParseFailable<'this> {
