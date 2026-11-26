@@ -136,13 +136,11 @@ impl<'this> Parser<'this> {
         kind: TokenKind,
         error_key: &str,
     ) -> Result<CstNode<'this>, TppCompilerError> {
-        if let Some(token) = self.peek_current()
-            && !token.is_of_kind(kind)
-        {
-            return Err(self.generate_error_with_token(error_key, token));
+        match self.peek_current() {
+            Some(token) if token.is_of_kind(kind) => Ok(CstNode::new_terminal(self.expect_token(|| None)?)),
+            Some(token) => Err(self.generate_error_with_token(error_key, token)),
+            None => Err(self.generate_eof_error(None)),
         }
-
-        Ok(CstNode::new_terminal(self.expect_token(|| None)?))
     }
 
     #[inline]
