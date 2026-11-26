@@ -231,3 +231,6 @@ Relatório *.pdf
 *.ast.*
 *.cst.*
 *_tree.txt
+!docs/**/*.cst.*
+!docs/**/*.ast.*
+!docs/**/*._tree.txt.*

@@ -1,0 +1,108 @@
+programa ::= ( declaracao FIM_DE_SENTENCA )+
+declaracao
+         ::= tipo ( _continue_as_declaracao_variaveis | _continue_as_declaracao_funcao_com_retorno )
+           | ID ( _continue_as_inicializacao_variaveis | _continue_as_declaracao_funcao_sem_retorno )
+           | ABRE_PARENTESE ( _continue_as_inicializacao_variaveis_com_parenteses | _continue_as_declaracao_funcao_com_tupla )
+
+declaracao_variaveis
+         ::= tipo _continue_as_declaracao_variaveis
+_continue_as_declaracao_variaveis ::= DOIS_PONTOS lista_alvos
+
+inicializacao_variaveis
+         ::= ID _continue_as_inicializacao_variaveis | ABRE_PARENTESE _continue_as_inicializacao_variaveis_com_parenteses
+_continue_as_inicializacao_variaveis_com_parenteses
+         ::= lista_alvos FECHA_PARENTESE ATRIBUICAO lista_expressoes
+_continue_as_inicializacao_variaveis
+         ::=  _continue_as_var _continue_as_lista_alvos ATRIBUICAO lista_expressoes
+
+var      ::= ID _continue_as_var
+_continue_as_var
+         ::=( ABRE_COLCHETE expressao FECHA_COLCHETE )* 
+
+tipo     ::= INTEIRO
+           | FLUTUANTE
+declaracao_funcao
+         ::= cabecalho
+           | tipo _continue_as_declaracao_funcao_com_retorno
+           | ABRE_PARENTESE _continue_as_declaracao_funcao_com_tupla
+_continue_as_declaracao_funcao_com_tupla
+         ::= _continue_as_tipos_retorno cabecalho
+_continue_as_declaracao_funcao_com_retorno
+         ::= cabecalho
+_continue_as_declaracao_funcao_sem_retorno
+         ::= _continue_as_cabecalho
+tipos_retorno
+         ::= ABRE_PARENTESE _continue_as_tipos_retorno
+_continue_as_tipos_retorno
+         ::= tipo ( VIRGULA tipo )* FECHA_PARENTESE
+cabecalho
+         ::= ID _continue_as_cabecalho
+_continue_as_cabecalho
+         ::= ABRE_PARENTESE ( parametro ( VIRGULA parametro )* )? FECHA_PARENTESE FIM_DE_SENTENCA bloco FIM
+parametro
+         ::= tipo DOIS_PONTOS ID ( ABRE_COLCHETE FECHA_COLCHETE )*
+bloco    ::= ( acao ( FIM_DE_SENTENCA bloco )? )?
+acao     ::= expressao ( _continue_as_lista_expressoes ( ATRIBUICAO lista_expressoes )+ )?
+           | declaracao_variaveis
+           | se
+           | repita
+           | leia
+           | escreva
+           | retorna
+           | erro
+se       ::= SE expressao ENTAO bloco ( SENAO bloco )? FIM
+repita   ::= REPITA bloco ATE expressao
+lista_alvos
+         ::= var _continue_as_lista_alvos
+_continue_as_lista_alvos
+         ::= ( VIRGULA var )*
+lista_expressoes
+         ::= expressao _continue_as_lista_expressoes
+_continue_as_lista_expressoes
+         ::= ( VIRGULA expressao )*
+leia     ::= LEIA ABRE_PARENTESE var FECHA_PARENTESE
+escreva  ::= ESCREVA ABRE_PARENTESE expressao FECHA_PARENTESE
+retorna  ::= RETORNA ABRE_PARENTESE lista_expressoes FECHA_PARENTESE
+expressao
+         ::= expressao_simples ( operador_logico expressao_simples )*
+expressao_simples
+         ::= expressao_aditiva ( operador_relacional expressao_aditiva )*
+expressao_aditiva
+         ::= expressao_multiplicativa ( operador_soma expressao_multiplicativa )*
+expressao_multiplicativa
+         ::= expressao_unaria ( operador_multiplicacao expressao_unaria )*
+expressao_unaria
+         ::= ( operador_soma | operador_negacao )? fator
+operador_relacional
+         ::= MENOR
+           | MAIOR
+           | IGUAL
+           | DIFERENTE
+           | MENOR_IGUAL
+           | MAIOR_IGUAL
+operador_soma
+         ::= MAIS
+           | MENOS
+operador_logico
+         ::= E
+           | OU
+operador_negacao
+         ::= NAO
+operador_multiplicacao
+         ::= VEZES
+           | DIVIDE
+fator    ::= ABRE_PARENTESE expressao ( _continue_as_tupla )? FECHA_PARENTESE
+           | ID ( _continue_as_chamada_funcao | _continue_as_var)
+           | numero
+           | inicializacao_arranjo
+_continue_as_chamada_funcao
+         ::= ABRE_PARENTESE ( expressao ( VIRGULA expressao )* )? FECHA_PARENTESE
+_continue_as_tupla ::= ( VIRGULA expressao )+
+tupla    ::= ABRE_PARENTESE expressao _continue_as_tupla FECHA_PARENTESE
+inicializacao_arranjo
+         ::= ABRE_CHAVE lista_expressoes FECHA_CHAVE
+numero   ::= NUM_INTEIRO
+           | NUM_PONTO_FLUTUANTE
+           | NUM_NOTACAO_CIENTIFICA
+chamada_funcao
+         ::= ID ABRE_PARENTESE ( expressao ( VIRGULA expressao )* )? FECHA_PARENTESE

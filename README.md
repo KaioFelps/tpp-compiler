@@ -33,14 +33,68 @@ adiante:
 - `-i`: faz com que os identificadores utilizem o subconjunto de identificadores válidos (isso remove
         a maioria dos caracteres utf-8, deixando os poucos que também são aceitos pelas implementações
         em Python).
+- `--output-cst`: imprime a árvore concreta abstrata resultante do *parser*.
 
 ### Exemplo
 ```sh
 alias tppc=./target/release/tppc
 tppc -s lexer ./teste.tpp # executa o compilador até a fase léxica
 tppc -s lexer -k ./teste.tpp # executa o compilador até a fase léxica e imprime as chaves dos erros
-tppc ./teste.tpp # executa o fluxo completo do compilador normalmente
+tppc --output-cst ./teste.tpp # executa o fluxo completo do compilador normalmente
 ```
+
+Sendo este o arquivo `./teste.tpp`:
+```txt
+{* teste.tpp *}
+inteiro: vet[10]
+inteiro: tam
+
+tam := 10
+
+{* preenche o vetor no pior caso *}
+preencheVetor()
+  inteiro: i
+  inteiro: j
+  i := 0
+  j := tam
+  repita
+    vet[i] = j
+    i := i + 1
+    j := j - 1
+  até i < tam
+fim
+
+{* implementação do bubble sort *}
+bubble_sort()
+  inteiro: i
+  i := 0
+  repita
+    inteiro: j
+    j := 0
+    repita
+      se vet[i] > v[j] então
+        inteiro: temp
+        temp := vet[i]
+        vet[i] := vet[j]
+        vet[j] := temp
+      fim
+      j := j + 1
+    até j < i
+    i := i + 1
+  até i < tam
+fim
+
+{* programa principal *}
+inteiro principal()
+  preencheVetor()
+  bubble_sort()
+  retorna(0)
+fim
+```
+
+A seguinte árvore é gerada:
+<br>
+![Árvore sintática concreta gerada a partir do código teste.tpp](docs/figuras/teste.tpp.cst.png)
 
 ## Testes
 Para rodar os testes, basta executar os comandos assim como já era feito no template: `pytest -v --lexer rust`.
