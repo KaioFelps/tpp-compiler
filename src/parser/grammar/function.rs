@@ -159,14 +159,12 @@ impl<'this> Parser<'this> {
 
     fn synchronize_func_params(&mut self) {
         // FOLLOW(lista_parametros) = { VIRGULA, FECHA_PARENTESE, FIM_DE_SENTENCA, FIM }
-        while let Some(token) = self.peek_current()
-            && !token.is_any_of_kinds(&[
-                TokenKind::Virgula,
-                TokenKind::FechaParentese,
-                TokenKind::FimDeSentenca,
-                TokenKind::Fim,
-            ])
-        {
+        while !self.peek_current().is_any_of_kinds(&[
+            TokenKind::Virgula,
+            TokenKind::FechaParentese,
+            TokenKind::FimDeSentenca,
+            TokenKind::Fim,
+        ]) {
             let _ = self.take_current();
         }
     }
@@ -177,32 +175,52 @@ impl<'this> Parser<'this> {
         let mut nodes = Vec::<CstNode<'this>>::new();
         let mut requires_a_new_parameter = false;
 
-        while self
-            .peek_current()
-            // First(tipo) ⋃ { VIRGULA }
-            // to handle cases like f(, inteiro: b)
-            .is_any_of_kinds(&[TokenKind::Inteiro, TokenKind::Flutuante, TokenKind::Virgula])
-            || requires_a_new_parameter
-        {
-            requires_a_new_parameter = false;
+        // outer loop to handle invalid parameters declaration
+        loop {
+            if self.peek_current().is_of_kind(TokenKind::Ident) {
+                self.emit_error(
+                    self.generate_error_with_token_opt("ERR-SYN-WRONG-PARAM-DECL-IDIOM", self.peek_current()),
+                );
+                self.synchronize_func_params();
 
-            match self.inner_parse_func_parameter() {
-                Ok(parameter_node) => nodes.push(parameter_node),
-                Err(err) => {
-                    self.emit_error(err);
-                    self.synchronize_func_params();
+                // we bump the comma so that the next parameter (if exists) can be parsed
+                // correctly
+                if self.peek_current().is_of_kind(TokenKind::Virgula) {
+                    let _ = self.take_current();
                 }
+
+                continue;
             }
 
-            let has_more_parameters = self.peek_current().is_of_kind(TokenKind::Virgula);
-            if !has_more_parameters {
-                break;
+            while self
+                .peek_current()
+                // First(tipo) ⋃ { VIRGULA }
+                // to handle cases like f(, inteiro: b)
+                .is_any_of_kinds(&[TokenKind::Inteiro, TokenKind::Flutuante, TokenKind::Virgula])
+                || requires_a_new_parameter
+            {
+                requires_a_new_parameter = false;
+
+                match self.inner_parse_func_parameter() {
+                    Ok(parameter_node) => nodes.push(parameter_node),
+                    Err(err) => {
+                        self.emit_error(err);
+                        self.synchronize_func_params();
+                    }
+                }
+
+                let has_more_parameters = self.peek_current().is_of_kind(TokenKind::Virgula);
+                if !has_more_parameters {
+                    break;
+                }
+
+                let comma_token = self.expect_token(|| nodes.last().and_then(|node| node.get_last_token()))?;
+                let comma_node = CstNode::new_terminal(comma_token);
+                nodes.push(comma_node);
+                requires_a_new_parameter = true;
             }
 
-            let comma_token = self.expect_token(|| nodes.last().and_then(|node| node.get_last_token()))?;
-            let comma_node = CstNode::new_terminal(comma_token);
-            nodes.push(comma_node);
-            requires_a_new_parameter = true;
+            break;
         }
 
         // don't return but emit the error instead, so that the rest can be parsed by the callee function parser method
