@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 
 use crate::{
     errors::{TppCompilerError, TppCompilerErrorsBag},
-    token::{IntoOnwedToken, Token},
+    token::{CanBeOfKind, IntoOnwedToken, Token, TokenKind},
 };
 
 mod cst;
@@ -128,5 +128,45 @@ impl<'this> Parser<'this> {
 
     fn emit_error(&mut self, error: TppCompilerError) {
         self.errors_bag.append_error(error);
+    }
+
+    #[inline]
+    fn get_token_and_append_if_kind_or_error(
+        &mut self,
+        subtree_root: &mut CstNode<'this>,
+        kind: TokenKind,
+        error_key: &str,
+    ) -> Result<(), TppCompilerError> {
+        if let Some(token) = self.peek_current()
+            && !token.is_of_kind(kind)
+        {
+            return Err(self.generate_error_with_ctx_token(error_key, Some(token), subtree_root.get_last_token()));
+        }
+
+        let node = CstNode::new_terminal(self.expect_token(|| subtree_root.get_last_token())?);
+        subtree_root.append_child(node);
+        Ok(())
+    }
+
+    #[inline]
+    fn get_token_and_append_if_kind_or_error_with_eof_error(
+        &mut self,
+        subtree_root: &mut CstNode<'this>,
+        kind: TokenKind,
+        error_key: &str,
+        eof_error_key: &str,
+    ) -> Result<(), TppCompilerError> {
+        if let Some(token) = self.peek_current()
+            && !token.is_of_kind(kind)
+        {
+            return Err(self.generate_error_with_ctx_token(error_key, Some(token), subtree_root.get_last_token()));
+        }
+
+        let Some(token) = self.take_current() else {
+            return Err(self.generate_error_with_token_opt(eof_error_key, subtree_root.get_last_token()));
+        };
+
+        subtree_root.append_child(CstNode::new_terminal(token));
+        Ok(())
     }
 }
