@@ -17,9 +17,8 @@ impl<'this> Parser<'this> {
 
         let mut var_decl_node = CstNode::new_non_terminal(NonTerminal::VarDeclaration);
         var_decl_node.append_child(type_node);
-        let last_token = var_decl_node.get_last_token();
 
-        let colon = CstNode::new_terminal(self.expect_token(|| last_token)?);
+        let colon = CstNode::new_terminal(self.expect_token(|| var_decl_node.get_last_token())?);
         var_decl_node.append_child(colon);
 
         let targets_list_node = self.parse_targets_list()?;
@@ -55,15 +54,9 @@ impl<'this> Parser<'this> {
         while let Some(token) = self.peek_current()
             && token.is_of_kind(TokenKind::Virgula)
         {
-            match self.expect_token(|| targets_list_node.get_last_token()) {
-                Ok(comma_token) => targets_list_node.append_child(CstNode::new_terminal(comma_token)),
-                Err(err) => self.emit_error(err),
-            };
-
-            match self.parse_var() {
-                Ok(var_node) => targets_list_node.append_child(var_node),
-                Err(err) => self.emit_error(err),
-            };
+            let comma_token = self.expect_token(|| targets_list_node.get_last_token())?;
+            targets_list_node.append_child(CstNode::new_terminal(comma_token));
+            targets_list_node.append_child(self.parse_var()?);
         }
 
         Ok(Left(targets_list_node))
