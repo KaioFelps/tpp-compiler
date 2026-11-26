@@ -172,16 +172,16 @@ impl<'this> Parser<'this> {
         let mut nodes = Vec::<CstNode<'this>>::new();
         let mut requires_a_new_parameter = false;
 
-        // Follow(lista_parametros) = { VIRGULA, FECHA_PARENTESE } ⋃ { FIM_DE_SENTENCA {* case `)` is missing *} }
-        // i.e., keeps parsing the parameters vector until it's got outside of the function header signature
-        while !self.peek_current().is_any_of_kinds(&[
-            TokenKind::FechaParentese,
-            TokenKind::FimDeSentenca,
-            TokenKind::Fim,
-        ]) {
+        while self
+            .peek_current()
+            // First(tipo) ⋃ { VIRGULA }
+            // to handle cases like f(, inteiro: b)
+            .is_any_of_kinds(&[TokenKind::Inteiro, TokenKind::Flutuante, TokenKind::Virgula])
+            || requires_a_new_parameter
+        {
             requires_a_new_parameter = false;
 
-            match self.parse_func_parameter() {
+            match self.inner_parse_func_parameter() {
                 Ok(parameter_node) => nodes.push(parameter_node),
                 Err(err) => {
                     self.emit_error(err);
@@ -222,16 +222,16 @@ impl<'this> Parser<'this> {
         }
     }
 
-    fn parse_func_parameter(&mut self) -> GrammarFinalParseResult<'this> {
+    fn inner_parse_func_parameter(&mut self) -> GrammarFinalParseResult<'this> {
         debug!(r#"[Parser] Chamou parse_func_parameter."#);
         const FUNC_PARAMS_DEFAULT_ERROR_KEY: &str = "ERR-SYN-PARAMETRO";
+        let mut param_node = CstNode::new_non_terminal(NonTerminal::Param);
 
         let type_node = match self.maybe_parse_type()? {
             Some(node) => node,
             None => return Err(self.generate_error_with_token_opt(FUNC_PARAMS_DEFAULT_ERROR_KEY, self.peek_current())),
         };
 
-        let mut param_node = CstNode::new_non_terminal(NonTerminal::Param);
         param_node.append_child(type_node);
 
         if let Err(err) = self.get_token_and_append_if_kind_or_error(
