@@ -1,6 +1,10 @@
 use configparser::ini::Ini;
+use core::fmt;
+use itertools::Itertools;
 use log::warn;
-use std::{collections::HashMap, fmt::Display, sync::LazyLock};
+use std::{collections::HashMap, fmt::Display, ops::Deref, sync::LazyLock};
+
+use crate::token::{OwnedToken, TokenKind};
 
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum ErrorMessagesSection {
@@ -41,9 +45,9 @@ impl Display for ErrorMessagesSection {
 
 /// The _ini_ config for each error kind
 const ERROR_MESSAGES_DESCRIPTORS: [&str; 3] = [
-    include_str!("GlobalErrorMessages.properties"),
-    include_str!("tpplexer/LexerErrorMessages.properties"),
-    include_str!("tppparser/ParserErrorMessages.properties"),
+    include_str!("errors/GlobalErrorMessages.properties"),
+    include_str!("errors/LexerErrorMessages.properties"),
+    include_str!("errors/ParserErrorMessages.properties"),
     // include_str!("tppsema/SemaErrorMessages.properties"),
     // include_str!("tppcodegen/CodeGenErrorMessages.propertie"),
 ];
@@ -53,7 +57,11 @@ static ERROR_MESSAGES: LazyLock<HashMap<ErrorMessagesSection, HashMap<&'static s
     LazyLock::new(|| {
         ERROR_MESSAGES_DESCRIPTORS
             .into_iter()
-            .map(|config| Ini::new_cs().read(config.to_string()))
+            .map(|config| {
+                let mut ini = Ini::new_cs();
+                ini.set_multiline(true);
+                ini.read(config.to_string())
+            })
             .filter_map(|res| match res {
                 Ok(res) => Some(res),
                 Err(err) => {
@@ -79,7 +87,7 @@ static ERROR_MESSAGES: LazyLock<HashMap<ErrorMessagesSection, HashMap<&'static s
             .collect::<HashMap<_, _>>()
     });
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ErrorKind {
     Global {
         file: Option<String>,
@@ -90,31 +98,51 @@ pub enum ErrorKind {
         column: usize,
         lexeme: String,
     },
-    Parser,
+    Parser {
+        file: String,
+        /// The token that was currently being analysed when the error occurred.
+        ///
+        /// ## Usage
+        /// If present, it can be used in error messages through the following placeholders:
+        /// - `{tok}` is replaced with `OwnedToken` simple debug print (`"{:?}"`)
+        /// - `{tok:kind}` is replaced with `OwnedToken::kind`
+        /// - `{tok:value}` is replaced with `OwnedToken::value`
+        /// - `{tok:line}` is replaced with `OwnedToken::line_number`
+        /// - `{tok:col}` is replaced with `OwnedToken::col_number`
+        current_token: Option<OwnedToken>,
+        /// If an extra token other than the current one being analysed can provide
+        /// better context for the error message (e.g., the next token that failed upon peek
+        /// and caused the error), it can be placed here and will replace `{extra_tok}`
+        /// placeholders upon error messages.
+        ///
+        /// ## Usage
+        /// - `{extra_tok}` is replaced with `OwnedToken` simple debug print (`"{:?}"`)
+        /// - `{extra_tok:kind}` is replaced with `OwnedToken::kind`
+        /// - `{extra_tok:value}` is replaced with `OwnedToken::value`
+        /// - `{extra_tok:line}` is replaced with `OwnedToken::line_number`
+        /// - `{extra_tok:col}` is replaced with `OwnedToken::col_number`
+        extra_token: Option<OwnedToken>,
+    },
 }
 
-#[derive(Debug)]
-pub struct TppCompilerError {
+// moved stuff into inner to the heap because rust compiler was warning this error was too large (~128 bytes)
+#[derive(Debug, Clone)]
+struct TppCompilerErrorInner {
     kind: ErrorKind,
     key: String,
     force_key: bool,
 }
 
-impl TppCompilerError {
-    pub fn new<T: ToString>(kind: ErrorKind, key: T, force_key: bool) -> Self {
-        Self {
-            kind,
-            key: key.to_string(),
-            force_key,
-        }
-    }
+#[derive(Debug, Clone)]
+pub struct TppCompilerError(Box<TppCompilerErrorInner>);
 
+impl TppCompilerError {
     pub fn new_global<T: ToString>(key: T, force_key: bool, file: Option<String>) -> Self {
-        Self {
+        Self(Box::new(TppCompilerErrorInner {
             key: key.to_string(),
             force_key,
             kind: ErrorKind::Global { file },
-        }
+        }))
     }
 
     pub fn new_lexer<T: ToString>(
@@ -125,7 +153,7 @@ impl TppCompilerError {
         column: usize,
         file: Option<String>,
     ) -> Self {
-        Self {
+        Self(Box::new(TppCompilerErrorInner {
             force_key,
             kind: ErrorKind::Lexer {
                 file,
@@ -134,7 +162,25 @@ impl TppCompilerError {
                 lexeme,
             },
             key: key.to_string(),
-        }
+        }))
+    }
+
+    pub fn new_parser<T: ToString>(
+        key: T,
+        force_key: bool,
+        file: String,
+        current_token: Option<OwnedToken>,
+        extra_token: Option<OwnedToken>,
+    ) -> Self {
+        Self(Box::new(TppCompilerErrorInner {
+            key: key.to_string(),
+            force_key,
+            kind: ErrorKind::Parser {
+                file,
+                current_token,
+                extra_token,
+            },
+        }))
     }
 
     pub fn with_file(mut self, file: String) -> Self {
@@ -142,54 +188,86 @@ impl TppCompilerError {
         self
     }
 
-    pub fn set_file(&mut self, file: String) {
-        self.kind = match &self.kind {
-            ErrorKind::Global { file: _ } => ErrorKind::Global { file: Some(file) },
-            ErrorKind::Lexer {
-                file: _,
-                line,
-                column,
-                lexeme,
-            } => ErrorKind::Lexer {
-                file: Some(file),
-                line: *line,
-                column: *column,
-                lexeme: lexeme.clone(),
-            },
-            ErrorKind::Parser => ErrorKind::Parser,
+    pub fn set_file(&mut self, new_file: String) {
+        match &mut self.0.kind {
+            ErrorKind::Global { file, .. } | ErrorKind::Lexer { file, .. } => {
+                *file = Some(new_file);
+            }
+            ErrorKind::Parser { file, .. } => {
+                *file = new_file;
+            }
         };
+    }
+
+    pub fn get_token(&self) -> Option<&OwnedToken> {
+        if let ErrorKind::Parser { current_token, .. } = &self.0.kind {
+            return current_token.as_ref();
+        }
+
+        None
+    }
+
+    pub fn get_extra_token(&self) -> Option<&OwnedToken> {
+        if let ErrorKind::Parser { extra_token, .. } = &self.0.kind {
+            return extra_token.as_ref();
+        }
+
+        None
+    }
+
+    pub fn with_key<T: ToString>(mut self, new_error_key: T) -> Self {
+        self.0.key = new_error_key.to_string();
+        self
     }
 }
 
 impl Display for TppCompilerError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.force_key {
-            return write!(f, "{}", self.key);
+        if self.0.force_key {
+            return write!(f, "{}", self.0.key);
         }
 
-        let section = match &self.kind {
-            ErrorKind::Global { file: _ } => ErrorMessagesSection::Global,
-            ErrorKind::Lexer {
-                file: _,
-                line: _,
-                column: _,
-                lexeme: _,
-            } => ErrorMessagesSection::Lexer,
-            ErrorKind::Parser => ErrorMessagesSection::Parser,
+        let section = match &self.0.kind {
+            ErrorKind::Global { .. } => ErrorMessagesSection::Global,
+            ErrorKind::Lexer { .. } => ErrorMessagesSection::Lexer,
+            ErrorKind::Parser { .. } => ErrorMessagesSection::Parser,
         };
 
         let mut content = if let Some(message) = ERROR_MESSAGES
             .get(&section)
-            .and_then(|section| section.get(self.key.as_str()))
+            .and_then(|section| section.get(self.0.key.as_str()))
         {
             message.to_string()
         } else {
-            self.key.clone()
+            self.0.key.clone()
         };
 
-        match &self.kind {
-            ErrorKind::Global { file } => {
-                content = content.replace("{file}", file.as_deref().unwrap_or_default());
+        match &self.0.kind {
+            ErrorKind::Global { file } => content = content.replace("{file}", file.as_deref().unwrap_or_default()),
+            ErrorKind::Parser {
+                file,
+                extra_token,
+                current_token,
+            } => {
+                content = content.replace("{file}", file.deref());
+
+                if let Some(token) = current_token {
+                    content = content
+                        .replace("{tok}", &format!("{token:?}"))
+                        .replace("{tok:kind}", &token.kind.to_string())
+                        .replace("{tok:value}", pretty_end_of_statement_value(token))
+                        .replace("{tok:line}", &token.line_number.to_string())
+                        .replace("{tok:col}", &token.col_number.to_string());
+                }
+
+                if let Some(token) = extra_token {
+                    content = content
+                        .replace("{extra_tok}", &format!("{token:?}"))
+                        .replace("{extra_tok:kind}", &token.kind.to_string())
+                        .replace("{extra_tok:value}", pretty_end_of_statement_value(token))
+                        .replace("{extra_tok:line}", &token.line_number.to_string())
+                        .replace("{extra_tok:col}", &token.col_number.to_string());
+                }
             }
             ErrorKind::Lexer {
                 file,
@@ -203,11 +281,18 @@ impl Display for TppCompilerError {
                     .replace("{column}", &column.to_string())
                     .replace("{lexeme}", lexeme);
             }
-            ErrorKind::Parser => {}
-        }
+        };
 
         write!(f, "{content}")
     }
+}
+
+fn pretty_end_of_statement_value(token: &OwnedToken) -> &str {
+    if token.kind == TokenKind::FimDeSentenca {
+        return "<MARCADOR DE FIM DE SENTENÇA>";
+    }
+
+    token.value.as_str()
 }
 
 impl std::error::Error for TppCompilerError {
@@ -220,6 +305,107 @@ impl std::error::Error for TppCompilerError {
     }
 
     fn description(&self) -> &str {
-        &self.key
+        &self.0.key
+    }
+}
+
+#[derive(Debug)]
+pub struct TppCompilerErrorsBag(pub Vec<TppCompilerError>, bool);
+
+impl TppCompilerErrorsBag {
+    pub fn shall_force_key(&self) -> bool {
+        self.1
+    }
+
+    pub fn new() -> Self {
+        Self(Vec::new(), false)
+    }
+
+    pub fn append_error(&mut self, error: TppCompilerError) {
+        if error.0.force_key {
+            self.1 = true;
+        }
+
+        self.0.push(error);
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}
+
+impl fmt::Display for TppCompilerErrorsBag {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for (i, err) in self.0.iter().enumerate() {
+            if i > 0 {
+                writeln!(f)?;
+            }
+
+            if self.shall_force_key() {
+                write!(f, "{err}")?;
+            } else {
+                writeln!(f, "{err}")?;
+            }
+        }
+        Ok(())
+    }
+}
+
+impl IntoIterator for TppCompilerErrorsBag {
+    type Item = anyhow::Error;
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter().map(anyhow::Error::from).collect_vec().into_iter()
+    }
+}
+
+impl std::error::Error for TppCompilerErrorsBag {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        None
+    }
+
+    fn cause(&self) -> Option<&dyn std::error::Error> {
+        None
+    }
+}
+
+#[derive(Debug)]
+pub struct AnyErrorsBag(pub Vec<anyhow::Error>);
+
+impl AnyErrorsBag {
+    pub fn new() -> Self {
+        Self(vec![])
+    }
+
+    pub fn append_error<T: Into<anyhow::Error>>(&mut self, error: T) {
+        self.0.push(error.into());
+    }
+
+    pub fn with_error<T: Into<anyhow::Error>>(mut self, error: T) -> Self {
+        self.0.push(error.into());
+        self
+    }
+}
+
+impl fmt::Display for AnyErrorsBag {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for (i, err) in self.0.iter().enumerate() {
+            if i > 0 {
+                writeln!(f)?;
+            }
+            write!(f, "{err}")?;
+        }
+        Ok(())
+    }
+}
+
+impl std::error::Error for AnyErrorsBag {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        None
+    }
+
+    fn cause(&self) -> Option<&dyn std::error::Error> {
+        None
     }
 }

@@ -42,8 +42,8 @@ class RustMockLexer:
             tmp_path = f.name
 
         try:
-            bin_path = "./target/release/tpp-compiler"
-            process = subprocess.run([bin_path, tmp_path], capture_output=True, text=True, check=True)
+            bin_path = "./target/release/tppc"
+            process = subprocess.run([bin_path, "-i", "--omit-eos", "-s", "lexer", tmp_path], capture_output=True, text=True, check=True)
             
             combined = f"{process.stdout}\n{process.stderr}".strip()
             

@@ -25,11 +25,11 @@ jobs:
 
       - name: Testes Léxicos
         if: hashFiles('tests/tpplex_test.py') != ''
-        run: pytest tests/tpplex_test.py -v
+        run: pytest tests/tpplex_test.py -v --lexer rust
 
       - name: Testes Sintáticos
         if: hashFiles('tests/tppparser_test.py') != ''
-        run: pytest tests/tppparser_test.py -v
+        run: pytest tests/tppparser_test.py -v --lexer rust --parser rust
 
       - name: Testes Semânticos
         if: hashFiles('tests/tppsema_test.py') != ''

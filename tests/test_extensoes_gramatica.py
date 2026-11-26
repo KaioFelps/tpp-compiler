@@ -37,7 +37,7 @@ def pytest_generate_tests(metafunc):
 
 def tokens_de(lexer_type, codigo):
     if lexer_type == "rust":
-        bin_path = "./target/release/tpp-compiler"
+        bin_path = "./target/release/tppc"
         if sys.platform == "win32":
             bin_path += ".exe"
 
@@ -48,7 +48,7 @@ def tokens_de(lexer_type, codigo):
         try:
             # stderr=STDOUT mantém a ordem cronológica e sem check=True para tolerar exit code 1 em erros léxicos
             proc = subprocess.run(
-                [bin_path, "-i", "-k", tmp_path],
+                [bin_path, "-i", "-k", "--omit-eos", "-s", "lexer", tmp_path],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,

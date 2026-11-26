@@ -1,15 +1,18 @@
 mod cli;
 mod errors;
+mod lexer;
+mod parser;
 mod token;
-mod tpplexer;
 
 use crate::{
-    cli::Args,
+    cli::{Args, CompilerStepStop},
     errors::TppCompilerError,
+    lexer::{Lexer, ManualDFALexer},
+    parser::{Parser, ParserOutput},
     token::Token,
-    tpplexer::{Lexer, ManualDFALexer},
 };
-use clap::Parser;
+use anyhow::anyhow;
+use clap::Parser as _;
 use log::{debug, info};
 use std::{
     collections::HashMap,
@@ -77,27 +80,15 @@ fn acquire_source_codes(args: &Args) -> anyhow::Result<HashMap<&str, String>> {
     Ok(source_codes)
 }
 
-fn _lex_source_codes<'a>(
-    args: &Args,
-    source_codes: &'a HashMap<&'a str, String>,
-) -> anyhow::Result<HashMap<&'a str, Vec<Token<'a>>>> {
-    let mut files_tokens = HashMap::<&'a str, Vec<Token<'a>>>::new();
-
-    for (file, data) in source_codes {
-        info!("[lex_source_files::{file}] Iniciando a análise léxica do arquivo");
-        let mut lexer = ManualDFALexer::new(data.as_str(), args.use_errors_key, args.use_identifiers_subset);
-        debug!("[lex_source_files::{file}] Instanciado o lexer para iniciar a análise");
-        let tokens = lexer.tokenize().map_err(|err| err.with_file(file.to_string()))?;
-        files_tokens.insert(*file, tokens);
-        debug!("[lex_source_files::{file}] Finalizada a tokenização do arquivo");
-    }
-
-    Ok(files_tokens)
-}
-
 fn lex_and_print_source_code(args: &Args, file: &str, source_code: &str) {
     info!("[lex_and_print_source_code::{file}] Iniciando a análise léxica do arquivo");
-    let mut lexer = ManualDFALexer::new(source_code, args.use_errors_key, args.use_identifiers_subset);
+    let mut lexer = ManualDFALexer::new(
+        source_code,
+        args.use_errors_key,
+        args.use_identifiers_subset,
+        args.omit_eos,
+    );
+
     debug!("[lex_and_print_source_code::{file}] Instanciado o lexer para iniciar a análise");
     for token in lexer.get_tokens() {
         match token {
@@ -111,6 +102,28 @@ fn lex_and_print_source_code(args: &Args, file: &str, source_code: &str) {
     debug!("[lex_and_print_source_code::{file}] Finalizada a tokenização do arquivo");
 }
 
+fn lex_source_code<'a>(args: &Args, file: &str, data: &'a str) -> anyhow::Result<Vec<Token<'a>>> {
+    info!("[lex_source_files::{file}] Iniciando a análise léxica do arquivo");
+    let mut lexer = ManualDFALexer::new(data, args.use_errors_key, args.use_identifiers_subset, args.omit_eos);
+
+    debug!("[lex_source_files::{file}] Instanciado o lexer para iniciar a análise");
+    let tokens = lexer.tokenize().map_err(|err| err.with_file(file.to_string()))?;
+    debug!("[lex_source_files::{file}] Finalizada a tokenização do arquivo");
+
+    Ok(tokens)
+}
+
+fn parse_source_code<'a>(args: &Args, file: &'a str, tokens: Vec<Token<'a>>) -> anyhow::Result<ParserOutput<'a>> {
+    info!("[parse_source_code::{file}] Instanciado o parser para iniciar a análise");
+    let parser = Parser::new(file, tokens, args.use_errors_key);
+
+    debug!("[parse_source_code::{file}] Iniciando a análise sitática do arquivo");
+    let result = parser.into_cst();
+    debug!("[parse_source_code::{file}] Finalizado o parsing do arquivo");
+
+    Ok(result)
+}
+
 fn run() -> anyhow::Result<()> {
     init_logging()?;
     let args = Args::parse();
@@ -119,22 +132,42 @@ fn run() -> anyhow::Result<()> {
     validate_source_files(&args)?;
 
     let source_codes = acquire_source_codes(&args)?;
-    // let source_files_tokens = lex_source_codes(&args, &source_codes)?;
 
     for (file, source_code) in &source_codes {
-        lex_and_print_source_code(&args, file, source_code);
-    }
+        if args.stop_at_step.is_some_and(|step| step == CompilerStepStop::Lexer) {
+            lex_and_print_source_code(&args, file, source_code);
+        } else {
+            let tokens = lex_source_code(&args, file, source_code)?;
+            let output = parse_source_code(&args, file, tokens)?;
 
-    // if source_files_tokens.len() > 1 {
-    //     for (file, tokens) in source_files_tokens {
-    //         println!("{file}");
-    //         tokens.iter().for_each(|token| println!("\t{token}"));
-    //     }
-    // } else if source_files_tokens.len() == 1 {
-    //     source_files_tokens.values().collect::<Vec<_>>()[0]
-    //         .iter()
-    //         .for_each(|token| println!("{}", token.kind()));
-    // }
+            match output {
+                ParserOutput::Failure(errors_bag) => return Err(anyhow!(errors_bag)),
+                ParserOutput::PartialFailure(_, mut errors_bag) => {
+                    if !errors_bag.is_empty() {
+                        let syntax_tree_gen_warning = TppCompilerError::new_parser(
+                            "WAR-SYN-NOT-GEN-SYNTAX-TREE",
+                            args.use_errors_key,
+                            file.to_string(),
+                            None,
+                            None,
+                        );
+                        errors_bag.append_error(syntax_tree_gen_warning);
+                    }
+
+                    return Err(anyhow!(errors_bag));
+                }
+                ParserOutput::Success(cst) => {
+                    println!("WAR-SYN-GEN-SYNTAX-TREE");
+
+                    if args.output_cst {
+                        // println!("{cst:#?}");
+                        println!("WAR-SYN-OUTPUT-FILE");
+                        println!("WAR-SYN-ANA-SUCCESS");
+                    }
+                }
+            };
+        }
+    }
 
     Ok(())
 }

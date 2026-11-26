@@ -1,6 +1,13 @@
 //! This module contains the structs needed to parse the commandline arguments.
 
 use clap::Parser;
+use clap::ValueEnum;
+
+#[derive(Clone, Copy, Debug, ValueEnum, PartialEq, Eq)]
+pub enum CompilerStepStop {
+    Lexer,
+    Parser,
+}
 
 #[derive(Parser)]
 // command(about) makes a -h or --help by default
@@ -27,4 +34,25 @@ pub struct Args {
     #[arg(name = "id-subset", short, long)]
     #[clap(default_value_t = false)]
     pub use_identifiers_subset: bool,
+
+    /// Omits end-of-statement tokens.
+    ///
+    /// (Disabled by default.)
+    #[arg(name = "omit-eos", long)]
+    #[clap(default_value_t = false)]
+    pub omit_eos: bool,
+
+    /// Stops the compiler at the specified step of compilation process.
+    ///
+    /// When not specified, the whole compilation process will happen normally.
+    #[arg(name = "stop-at", short, long)]
+    #[clap(default_value = None)]
+    pub stop_at_step: Option<CompilerStepStop>,
+
+    /// Whether the parser should output the Concret Syntax Tree as an image.
+    ///
+    /// (Disabled by default.)
+    #[arg(name = "output-cst", long)]
+    #[clap(default_value_t = false)]
+    pub output_cst: bool,
 }

@@ -3,7 +3,7 @@
     {
       "name": "Testes para a Análise Léxica",
       "setup": "uv sync",
-      "run": "uv run pytest -v",
+      "run": "uv run pytest -v --lexer rust --parser rust",
       "input": "",
       "output": "",
       "comparison": "included",
