@@ -63,8 +63,18 @@ impl<'this> Parser<'this> {
         let if_token = CstNode::new_terminal(self.expect_token(|| None)?);
         if_node.append_child(if_token);
 
-        let expr = self.parse_expr()?;
-        if_node.append_child(expr);
+        match self.parse_expr() {
+            Ok(expr) => if_node.append_child(expr),
+            // if it's missing the if statement's condition (that is this expression),
+            // we emit an error but keep parsing.
+            Err(err) => {
+                self.emit_error(self.generate_error_with_ctx_token(
+                    "ERR-SYN-IF-MISSING-CONDITION",
+                    err.get_token(),
+                    err.get_extra_token(),
+                ));
+            }
+        };
 
         let else_token = self.expect_token(|| if_node.get_last_token())?;
         if !else_token.is_of_kind(TokenKind::Entao) {
