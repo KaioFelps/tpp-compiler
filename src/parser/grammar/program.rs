@@ -32,7 +32,9 @@ impl<'this> Parser<'this> {
             };
 
             if *next_token.kind() != TokenKind::FimDeSentenca {
-                return Err(self.generate_error_with_token("ERR-SYN-EXPECTED-EOS", &next_token));
+                self.emit_error(self.generate_error_with_token("ERR-SYN-EXPECTED-EOS", &next_token));
+                self.synchronize_program();
+                continue;
             }
 
             let node = CstNode::new(CstNodeKind::Terminal(next_token));
