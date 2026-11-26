@@ -71,14 +71,7 @@ impl<'this> Parser<'this> {
 
     pub(super) fn parse_var(&mut self) -> GrammarFinalParseResult<'this> {
         debug!(r#"[Parser] Chamou parse_var."#);
-        let token = self.expect_token(|| None)?;
-
-        if *token.kind() != TokenKind::Ident {
-            return Err(self.generate_error_with_token("ERR-SYN-INVALID-VAR-DEF", &token));
-        }
-
-        let ident_node = CstNode::new_terminal(token);
-
+        let ident_node = self.get_token_if_kind_or_error(TokenKind::Ident, "ERR-SYN-INVALID-VAR-DEF")?;
         self.inner_parse_var(ident_node)
     }
 
