@@ -54,14 +54,13 @@ impl<'this> Parser<'this> {
             return_type_node.append_child(comma_node);
         }
 
-        let paren_close_token = self.expect_token(|| return_type_node.get_last_token())?;
-        if *paren_close_token.kind() != TokenKind::FechaParentese {
-            const ERROR_KEY: &str = "ERR-SYN-MULTIPLE-RETURN-TYPES-EXPECTED-PAREN-CLOSE";
-            return Err(self.generate_error_with_token(ERROR_KEY, &paren_close_token));
+        if let Err(err) = self.get_token_and_append_if_kind_or_error(
+            &mut return_type_node,
+            TokenKind::FechaParentese,
+            "ERR-SYN-MULTIPLE-RETURN-TYPES-EXPECTED-PAREN-CLOSE",
+        ) {
+            self.emit_error(err);
         }
-
-        let paren_close_node = CstNode::new_terminal(paren_close_token);
-        return_type_node.append_child(paren_close_node);
 
         Ok(return_type_node)
     }
