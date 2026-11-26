@@ -157,8 +157,12 @@ fn run() -> anyhow::Result<()> {
                     return Err(anyhow!(errors_bag));
                 }
                 ParserOutput::Success(cst) => {
+                    println!("WAR-SYN-GEN-SYNTAX-TREE");
+
                     if args.output_cst {
-                        println!("{cst:#?}");
+                        // println!("{cst:#?}");
+                        println!("WAR-SYN-OUTPUT-FILE");
+                        println!("WAR-SYN-ANA-SUCCESS");
                     }
                 }
             };
