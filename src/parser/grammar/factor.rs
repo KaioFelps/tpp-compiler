@@ -16,26 +16,21 @@ impl<'this> Parser<'this> {
             let paren_open = CstNode::new_terminal(self.expect_token(|| factor.get_last_token())?);
             let expr = self.parse_expr()?;
 
-            match self.inner_parse_as_tuple(paren_open, expr) {
-                Ok(tuple) => match tuple {
-                    Left(tuple) => factor.append_child(tuple),
-                    Right((paren_open, expr)) => {
-                        factor.append_child(paren_open);
-                        factor.append_child(expr);
+            match self.inner_parse_as_tuple(paren_open, expr)? {
+                Left(tuple) => factor.append_child(tuple),
+                Right((paren_open, expr)) => {
+                    factor.append_child(paren_open);
+                    factor.append_child(expr);
 
-                        // in this case it's just a (expr) rathern than a tuple,
-                        // so we still must require close parenthesis
-                        if let Err(err) = self.get_token_and_append_if_kind_or_error(
-                            &mut factor,
-                            FechaParentese,
-                            "ERR-SYN-FACTOR-MISSING-PAREN-CLOSE",
-                        ) {
-                            self.emit_error(err);
-                        };
-                    }
-                },
-                Err(err) => {
-                    self.emit_error(err);
+                    // in this case it's just a (expr) rathern than a tuple,
+                    // so we still must require close parenthesis
+                    if let Err(err) = self.get_token_and_append_if_kind_or_error(
+                        &mut factor,
+                        FechaParentese,
+                        "ERR-SYN-FACTOR-MISSING-PAREN-CLOSE",
+                    ) {
+                        self.emit_error(err);
+                    };
                 }
             };
 
