@@ -76,15 +76,37 @@ impl<'this> Parser<'this> {
             }
         };
 
-        let else_token = self.expect_token(|| if_node.get_last_token())?;
-        if !else_token.is_of_kind(TokenKind::Entao) {
-            return Err(self.generate_error_with_ctx_token(
+        if let Some(then) = self.peek_current()
+            && !then.is_of_kind(TokenKind::Entao)
+        {
+            self.emit_error(self.generate_error_with_ctx_token(
                 "ERR-SYN-IF-MISSING-THEN",
-                Some(&else_token),
+                Some(then),
                 if_node.get_last_token(),
             ));
+
+            // handle cases where the developer put the `então` clause in a newline and that was the reason why
+            // this couldn't find it
+            // we must consume it because if the token after this EOS is a valid production, it would fail because
+            // of this EOS
+            if self.peek_current().is_of_kind(TokenKind::FimDeSentenca) {
+                let _ = self.take_current();
+            }
+
+            // finally, if the `então` clause does exist after it, we take it and consider it
+            if self.peek_current().is_of_kind(TokenKind::Entao) {
+                // we put it back in the node just so that the following calls to `if_node.get_last_token()` can
+                // point to this `então` clause that might be closer to the token that might come to cause this
+                // hypothetical error
+                let then = self.expect_token(|| if_node.get_last_token())?;
+                if_node.append_child(CstNode::new_terminal(then));
+            }
+        } else {
+            let then = self.expect_token(|| if_node.get_last_token()).map_err(|err| {
+                self.generate_error_with_ctx_token("ERR-SYN-IF-MISSING-THEN", err.get_token(), err.get_extra_token())
+            })?;
+            if_node.append_child(CstNode::new_terminal(then));
         }
-        if_node.append_child(CstNode::new_terminal(else_token));
 
         let block = self.parse_block(&[TokenKind::Senao, TokenKind::Fim])?;
         if_node.append_child(block);
