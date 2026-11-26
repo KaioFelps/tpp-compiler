@@ -25,20 +25,14 @@ impl<'this> Parser<'this> {
                 }
             };
 
-            let next_token = match self.take_current() {
-                Some(token) => token,
-                // an EOS token is emitted even if the file does not end with \n.
-                None => return Err(self.generate_eof_error(program_node.get_last_token())),
-            };
-
-            if *next_token.kind() != TokenKind::FimDeSentenca {
-                self.emit_error(self.generate_error_with_token("ERR-SYN-EXPECTED-EOS", &next_token));
+            if let Err(err) = self.get_token_and_append_if_kind_or_error(
+                &mut program_node,
+                TokenKind::FimDeSentenca,
+                "ERR-SYN-EXPECTED-EOS",
+            ) {
+                self.emit_error(err);
                 self.synchronize_program();
-                continue;
-            }
-
-            let node = CstNode::new(CstNodeKind::Terminal(next_token));
-            program_node.append_child(node);
+            };
         }
 
         Ok(program_node)
