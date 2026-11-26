@@ -89,6 +89,11 @@ impl<'this> Parser<'this> {
             let bracket_open_node = CstNode::new_terminal(bracket_open_token);
             var_node.append_child(bracket_open_node);
 
+            if self.peek_current().is_of_kind(TokenKind::FechaColchete) {
+                let _ = self.take_current();
+                return Err(self.generate_error_with_token_opt("ERR-SYN-INDICE", var_node.get_last_token()));
+            }
+
             let expr_node = self.parse_expr()?;
             var_node.append_child(expr_node);
 
