@@ -7,8 +7,10 @@ use crate::{
 
 mod cst;
 mod grammar;
+mod graphviz;
 
 pub use cst::*;
+pub use graphviz::*;
 
 pub struct Parser<'this> {
     tokens: VecDeque<Token<'this>>,
@@ -21,6 +23,7 @@ pub struct Parser<'this> {
 #[derive(Debug)]
 pub enum ParserOutput<'a> {
     Success(CstNode<'a>),
+    #[allow(unused)]
     PartialFailure(CstNode<'a>, TppCompilerErrorsBag),
     Failure(TppCompilerErrorsBag),
 }

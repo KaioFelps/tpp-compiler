@@ -8,25 +8,18 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub enum CstNodeKind<'this> {
+pub(super) enum CstNodeKind<'this> {
     NonTerminal(NonTerminal),
     Terminal(Token<'this>),
 }
 
 #[derive(Debug)]
 pub struct CstNode<'this> {
-    kind: CstNodeKind<'this>,
-    children: Vec<CstNode<'this>>,
+    pub(super) kind: CstNodeKind<'this>,
+    pub(super) children: Vec<CstNode<'this>>,
 }
 
 impl<'this> CstNode<'this> {
-    pub fn new(kind: CstNodeKind<'this>) -> Self {
-        Self {
-            kind,
-            children: Vec::new(),
-        }
-    }
-
     pub fn new_terminal(token: Token<'this>) -> Self {
         Self {
             kind: CstNodeKind::Terminal(token),

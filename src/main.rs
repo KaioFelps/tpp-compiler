@@ -8,7 +8,7 @@ use crate::{
     cli::{Args, CompilerStepStop},
     errors::TppCompilerError,
     lexer::{Lexer, ManualDFALexer},
-    parser::{Parser, ParserOutput},
+    parser::{Parser, ParserOutput, export_cst_graphviz},
     token::Token,
 };
 use anyhow::anyhow;
@@ -157,13 +157,37 @@ fn run() -> anyhow::Result<()> {
                     return Err(anyhow!(errors_bag));
                 }
                 ParserOutput::Success(cst) => {
-                    println!("WAR-SYN-GEN-SYNTAX-TREE");
-
                     if args.output_cst {
-                        // println!("{cst:#?}");
-                        println!("WAR-SYN-OUTPUT-FILE");
-                        println!("WAR-SYN-ANA-SUCCESS");
+                        export_cst_graphviz(&args, file, &cst)?;
+
+                        let gen_tree_warn = TppCompilerError::new_parser(
+                            "WAR-SYN-GEN-SYNTAX-TREE",
+                            args.use_errors_key,
+                            file.to_string(),
+                            None,
+                            None,
+                        );
+
+                        let output_file_warn: TppCompilerError = TppCompilerError::new_parser(
+                            "WAR-SYN-OUTPUT-FILE",
+                            args.use_errors_key,
+                            format!("{file}.cst.png"),
+                            None,
+                            None,
+                        );
+
+                        println!("{gen_tree_warn}");
+                        println!("{output_file_warn}");
                     }
+
+                    let success_warn = TppCompilerError::new_parser(
+                        "WAR-SYN-ANA-SUCCESS",
+                        args.use_errors_key,
+                        file.to_string(),
+                        None,
+                        None,
+                    );
+                    println!("{success_warn}");
                 }
             };
         }
