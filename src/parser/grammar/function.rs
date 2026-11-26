@@ -22,6 +22,15 @@ impl<'this> Parser<'this> {
         let mut return_type_node = CstNode::new_non_terminal(NonTerminal::ReturnType);
         return_type_node.append_child(paren_open_node);
 
+        if let Some(token) = self.peek_current()
+            && token.is_of_kind(FechaParentese)
+        {
+            let err = self.generate_error_with_token("ERR-SYN-MULTIPLE-RETURN-TYPES-EMPTY", token);
+            self.emit_error(err);
+            let token = self.expect_token(|| return_type_node.get_last_token())?;
+            return Ok(return_type_node.with_child(CstNode::new_terminal(token)));
+        }
+
         loop {
             let type_node = match self.maybe_parse_type()? {
                 Some(token) => token,
@@ -279,10 +288,11 @@ impl<'this> Parser<'this> {
         parenthesis_node: CstNode<'this>,
     ) -> GrammarInnerParseFailable<'this> {
         debug!(r#"[Parser] Chamou inner_parse_func_decl_with_tuple_return_type."#);
+
         // First(_continue_as_tipos_retorno) = First(tipo) = {Inteiro, Flutuante}
-        let is_func_decl_with_multiple_return_types = self
-            .peek_current()
-            .is_any_of_kinds(&[TokenKind::Inteiro, TokenKind::Flutuante]);
+        let is_func_decl_with_multiple_return_types =
+            self.peek_current()
+                .is_any_of_kinds(&[TokenKind::Inteiro, TokenKind::Flutuante, TokenKind::FechaParentese]);
 
         if !is_func_decl_with_multiple_return_types {
             return Ok(Right(parenthesis_node));
