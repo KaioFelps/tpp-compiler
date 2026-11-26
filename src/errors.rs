@@ -87,7 +87,7 @@ static ERROR_MESSAGES: LazyLock<HashMap<ErrorMessagesSection, HashMap<&'static s
             .collect::<HashMap<_, _>>()
     });
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ErrorKind {
     Global {
         file: Option<String>,
@@ -126,14 +126,14 @@ pub enum ErrorKind {
 }
 
 // moved stuff into inner to the heap because rust compiler was warning this error was too large (~128 bytes)
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct TppCompilerErrorInner {
     kind: ErrorKind,
     key: String,
     force_key: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TppCompilerError(Box<TppCompilerErrorInner>);
 
 impl TppCompilerError {
@@ -213,6 +213,11 @@ impl TppCompilerError {
         }
 
         None
+    }
+
+    pub fn with_key<T: ToString>(mut self, new_error_key: T) -> Self {
+        self.0.key = new_error_key.to_string();
+        self
     }
 }
 
